@@ -1,0 +1,36 @@
+:root {
+  --rift-bg: #0d0620;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--rift-bg);
+  overscroll-behavior: none;
+  touch-action: none;
+  font-family: 'Baloo 2', 'Comic Sans MS', system-ui, -apple-system, sans-serif;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: var(--rift-bg);
+}
+
+#app canvas {
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+}

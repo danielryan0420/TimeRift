@@ -1,0 +1,92 @@
+import { mulberry32 } from '../rng';
+
+const VALUES: [string, number][] = [
+  ['M', 1000],
+  ['CM', 900],
+  ['D', 500],
+  ['CD', 400],
+  ['C', 100],
+  ['XC', 90],
+  ['L', 50],
+  ['XL', 40],
+  ['X', 10],
+  ['IX', 9],
+  ['V', 5],
+  ['IV', 4],
+  ['I', 1],
+];
+
+export function toRoman(n: number): string {
+  if (!Number.isInteger(n) || n <= 0 || n > 3999) {
+    throw new RangeError('toRoman supports integers 1-3999');
+  }
+  let remaining = n;
+  let result = '';
+  for (const [symbol, value] of VALUES) {
+    while (remaining >= value) {
+      result += symbol;
+      remaining -= value;
+    }
+  }
+  return result;
+}
+
+const ROMAN_PATTERN =
+  /^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
+
+/** Strict validity check: rejects malformed numerals like "IIII" or "VX". */
+export function isValidRomanNumeral(s: string): boolean {
+  return s.length > 0 && ROMAN_PATTERN.test(s);
+}
+
+export function fromRoman(s: string): number | null {
+  if (!isValidRomanNumeral(s)) return null;
+  let total = 0;
+  let i = 0;
+  while (i < s.length) {
+    const two = s.slice(i, i + 2);
+    const twoEntry = VALUES.find(([sym]) => sym === two && sym.length === 2);
+    if (twoEntry) {
+      total += twoEntry[1];
+      i += 2;
+      continue;
+    }
+    const one = s[i];
+    const oneEntry = VALUES.find(([sym]) => sym === one && sym.length === 1);
+    if (!oneEntry) return null;
+    total += oneEntry[1];
+    i += 1;
+  }
+  return total;
+}
+
+export function checkLock(target: number, attempt: string): boolean {
+  return fromRoman(attempt) === target;
+}
+
+export interface LockPuzzle {
+  target: number;
+  /** Shuffled symbol tiles the player drags into order to build the answer. */
+  tiles: string[];
+}
+
+const SYMBOL_CHARS = ['I', 'V', 'X', 'L', 'C', 'D', 'M'];
+
+export function generateLockPuzzle(seed: number, min = 1, max = 500): LockPuzzle {
+  const rand = mulberry32(seed);
+  const target = min + Math.floor(rand() * (max - min + 1));
+  const answer = toRoman(target);
+  const correctTiles = answer.split('');
+  const distractorCount = Math.min(3, SYMBOL_CHARS.length);
+  const tiles = [...correctTiles];
+  for (let i = 0; i < distractorCount; i++) {
+    const extra = SYMBOL_CHARS[Math.floor(rand() * SYMBOL_CHARS.length)];
+    tiles.push(extra);
+  }
+  // simple shuffle using same rand stream
+  for (let i = tiles.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+  }
+  return { target, tiles };
+}
