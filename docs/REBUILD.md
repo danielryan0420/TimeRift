@@ -21,8 +21,9 @@ src/
     progression.ts  Stars, artifacts, gadget-skin unlocks, era-unlock rules.
     hints.ts         Generic HintTracker (ordered hint reveal + usage count).
     puzzles/
-      egypt.ts, rome.ts, vikings.ts, castle.ts, florence.ts, revolution.ts,
-      industrial.ts, moon.ts   One pure logic module per era.
+      egypt.ts, rome.ts, china.ts, vikings.ts, castle.ts, florence.ts,
+      revolution.ts, industrial.ts, flight.ts, moon.ts   One pure logic
+      module per era.
       boss.ts   Final-boss round sequencing/HP state machine (reuses the
                 above modules' generators/validators; no duplicated logic).
   state/
@@ -76,10 +77,11 @@ for the reveal animation. On puzzle completion, the era scene builds an
 calls `recordEraCompletion()` to mutate and persist the save, then shows
 stars/artifact/fact and a button back to `Hub`.
 
-All 8 eras (Egypt, Rome, Vikings, Medieval Castle, Renaissance Florence,
-American Revolution, Industrial Revolution, Moon Landing) are implemented.
-`HubScene.ts` gates them with the full-chain `isEraUnlocked()` from
-`core/progression.ts` — no playable-subset override remains.
+All 10 eras (Egypt, Rome, China, Vikings, Medieval Castle, Renaissance
+Florence, American Revolution, Industrial Revolution, Age of Flight, Moon
+Landing) are implemented. `HubScene.ts` gates them with the full-chain
+`isEraUnlocked()` from `core/progression.ts` — no playable-subset override
+remains.
 
 ## The final boss: "The Chronarch"
 
@@ -87,7 +89,7 @@ Once every era is completed, a "Final Showdown" node unlocks on the Hub
 map (`isBossUnlocked()` in `core/progression.ts`) and starts `BossEraScene`
 (`src/eras/BossEraScene.ts`). The fight is a pure state machine in
 `src/core/puzzles/boss.ts` (`initBossFight`/`applyRoundOutcome`/etc.,
-tested in `tests/puzzles-boss.test.ts`): 8 rounds, one per era in
+tested in `tests/puzzles-boss.test.ts`): 10 rounds, one per era in
 `BOSS_ROUND_ORDER` (= `ERA_ORDER`), each generating a single-instance
 challenge via that era's own `core/puzzles/*.ts` generator/validator (no
 duplicated puzzle logic). A correct answer chips the boss's HP and
@@ -95,7 +97,7 @@ advances the round; a mistake costs the player one of `PLAYER_MAX_HP`
 hearts. Winning calls `recordBossVictory()` and shows `BossCompleteScene`;
 losing offers a scene restart.
 
-## Adding a new era (e.g. a 9th one)
+## Adding a new era (e.g. an 11th one)
 
 1. **Design the puzzle as pure logic first.** Add
    `src/core/puzzles/<era>.ts` with generation + validation functions (see

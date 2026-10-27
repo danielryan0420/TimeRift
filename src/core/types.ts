@@ -1,21 +1,25 @@
 export type EraId =
   | 'egypt'
   | 'rome'
+  | 'china'
   | 'vikings'
   | 'castle'
   | 'florence'
   | 'revolution'
   | 'industrial'
+  | 'flight'
   | 'moon';
 
 export const ERA_ORDER: EraId[] = [
   'egypt',
   'rome',
+  'china',
   'vikings',
   'castle',
   'florence',
   'revolution',
   'industrial',
+  'flight',
   'moon',
 ];
 

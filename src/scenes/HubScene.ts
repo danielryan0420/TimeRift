@@ -13,35 +13,41 @@ import { showToast } from '../ui/toast';
 const ERA_SCENE_KEY: Record<EraId, string> = {
   egypt: 'EgyptEra',
   rome: 'RomeEra',
+  china: 'ChinaEra',
   vikings: 'VikingsEra',
   castle: 'CastleEra',
   florence: 'FlorenceEra',
   revolution: 'RevolutionEra',
   industrial: 'IndustrialEra',
+  flight: 'FlightEra',
   moon: 'MoonEra',
 };
 
 const NODE_POSITIONS: Record<EraId, { x: number; y: number }> = {
-  egypt: { x: 90, y: 440 },
-  rome: { x: 230, y: 330 },
-  vikings: { x: 390, y: 440 },
-  castle: { x: 530, y: 320 },
-  florence: { x: 410, y: 190 },
-  revolution: { x: 600, y: 150 },
-  industrial: { x: 720, y: 300 },
-  moon: { x: 860, y: 260 },
+  egypt: { x: 80, y: 460 },
+  rome: { x: 210, y: 340 },
+  china: { x: 330, y: 460 },
+  vikings: { x: 450, y: 360 },
+  castle: { x: 560, y: 460 },
+  florence: { x: 470, y: 230 },
+  revolution: { x: 610, y: 150 },
+  industrial: { x: 730, y: 260 },
+  flight: { x: 820, y: 170 },
+  moon: { x: 900, y: 330 },
 };
 
-const BOSS_NODE_POS = { x: 890, y: 420 };
+const BOSS_NODE_POS = { x: 900, y: 470 };
 
 const ERA_ICON: Record<EraId, string> = {
   egypt: '🔺',
   rome: '🏛️',
+  china: '🐉',
   vikings: '⛵',
   castle: '🏰',
   florence: '🎨',
   revolution: '🔔',
   industrial: '⚙️',
+  flight: '🛩️',
   moon: '🚀',
 };
 
@@ -63,7 +69,7 @@ export class HubScene extends Phaser.Scene {
       fontSize: '18px',
       color: PALETTE.textMuted,
     });
-    this.add.text(16, 92, `⭐ ${totalStars(profile)} / 24`, {
+    this.add.text(16, 92, `⭐ ${totalStars(profile)} / ${ERA_ORDER.length * 3}`, {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.gold,

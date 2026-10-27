@@ -2,14 +2,15 @@
 
 A time-traveling history & science adventure built for curious middle
 schoolers. A villain called the Chronarch has shattered the timeline —
-jump through swirling time rifts across eight eras, from Ancient Egypt to
+jump through swirling time rifts across ten eras, from Ancient Egypt to
 the Moon landing, and mend each one by solving puzzles woven into real
 history and science (not quizzes): pick the right tool to raise a pyramid
-block, crack a Roman numeral vault lock, steer a longship by the North
-Star, aim a trebuchet, compose a Renaissance canvas by the golden ratio,
-crack a Culper Ring cipher wheel, set a factory's gear ratio, and balance
-thrust against fuel to launch a rocket. Mend every era and the Chronarch
-itself challenges you to a final showdown mixing a trial from each one.
+block, crack a Roman numeral vault lock, load a Silk Road caravan, steer a
+longship by the North Star, aim a trebuchet, compose a Renaissance canvas
+by the golden ratio, crack a Culper Ring cipher wheel, set a factory's gear
+ratio, balance lift against a fragile wing frame, and balance thrust
+against fuel to launch a rocket. Mend every era and the Chronarch itself
+challenges you to a final showdown mixing a trial from each one.
 
 Built with **Vite + TypeScript + Phaser 3**. No accounts, no ads, no
 tracking, no network calls during play — it's a static site that also works
@@ -48,7 +49,7 @@ project is put together and how to extend it.
 
 ## What's built
 
-All eight eras are fully playable, each with its own 2.5D parallax art,
+All ten eras are fully playable, each with its own 2.5D parallax art,
 animated time-rift transitions, particle effects, synthesized sound effects
 (with a mute toggle), hints, scoring, and a historical "what really
 happened" card:
@@ -57,6 +58,8 @@ happened" card:
   sledge, wet sand) to each block's situation.
 - **Ancient Rome** — assemble Roman numeral tiles to crack a sequence of
   numeral locks.
+- **Ancient China** — load a Silk Road caravan with the trade good each
+  merchant (silk, paper, tea, porcelain) actually wants.
 - **Viking Seas** — rotate a star compass to steer by Polaris across
   several legs of a voyage.
 - **Medieval Castle** — tune a trebuchet's counterweight and release angle
@@ -67,10 +70,13 @@ happened" card:
   intercepted messages.
 - **Industrial Revolution** — set a drive/driven gear ratio to hit a target
   RPM, the same math that powered a steam-driven factory floor.
+- **Age of Flight** — slide the 1903 Wright Flyer's airspeed into the
+  window where the lift equation clears its weight but doesn't overstress
+  the wood-and-fabric frame.
 - **Moon Landing** — balance real thrust-to-weight ratio and the
   Tsiolkovsky rocket equation against a fuel slider to reach orbit.
 
-Finish all eight and a **Final Showdown** unlocks: a boss fight against the
+Finish all ten and a **Final Showdown** unlocks: a boss fight against the
 Chronarch that cycles through one trial from every era in a row, tracked by
 a boss-HP bar and player hearts, reusing each era's own puzzle logic.
 

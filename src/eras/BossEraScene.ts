@@ -11,12 +11,14 @@ import {
 } from '../core/puzzles/boss';
 import { checkAnswer, generateBlocks, TOOL_INFO, TOOLS, type BlockChallenge } from '../core/puzzles/egypt';
 import { checkLock, generateLockPuzzle, type LockPuzzle } from '../core/puzzles/rome';
+import { checkGood, generateStops, GOOD_INFO, GOODS, type CaravanStop } from '../core/puzzles/china';
 import { evaluateLeg, generateVoyage, type VoyageLeg } from '../core/puzzles/vikings';
 import { evaluateShot, generateTargets, projectileRangeM, type SiegeTarget } from '../core/puzzles/castle';
 import { evaluatePlacement, generateCanvases, type CanvasChallenge } from '../core/puzzles/florence';
 import { caesarDecode, checkShift, generateCiphers, type CipherChallenge } from '../core/puzzles/revolution';
 import { evaluateOrder, generateSolvableOrder, outputRpm, type FactoryOrder } from '../core/puzzles/industrial';
 import { deltaV, evaluateLaunch, thrustToWeightRatio } from '../core/puzzles/moon';
+import { evaluateFlight, generateAttempts, liftForceN, MAX_SLIDER_SPEED_MS, type FlightAttempt } from '../core/puzzles/flight';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { burstError, burstSuccess } from '../ui/particles';
@@ -33,11 +35,13 @@ const PUZZLE_Y = 300;
 const ERA_LABEL: Record<string, string> = {
   egypt: 'Ancient Egypt',
   rome: 'Ancient Rome',
+  china: 'Ancient China',
   vikings: 'Viking Seas',
   castle: 'Medieval Castle',
   florence: 'Renaissance Florence',
   revolution: 'American Revolution',
   industrial: 'Industrial Revolution',
+  flight: 'Age of Flight',
   moon: 'Moon Landing',
 };
 
@@ -53,7 +57,7 @@ const BOSS_CASTLE_ANGLE_DEG = 20;
 export class BossEraScene extends Phaser.Scene {
   private bossState!: BossState;
   private fightOver = false;
-  private dragMode: 'vikings' | 'castle' | 'florence' | 'revolution' | 'industrial' | 'moon' | null = null;
+  private dragMode: 'vikings' | 'castle' | 'florence' | 'revolution' | 'industrial' | 'moon' | 'flight' | null = null;
 
   private puzzleLayer!: Phaser.GameObjects.Container;
   private villain!: Phaser.GameObjects.Container;
@@ -68,6 +72,7 @@ export class BossEraScene extends Phaser.Scene {
   private romePuzzle?: LockPuzzle;
   private romeAttempt: string[] = [];
   private romeTiles: Phaser.GameObjects.Container[] = [];
+  private chinaStop?: CaravanStop;
   private vikingsLeg?: VoyageLeg;
   private vikingsBearing = 0;
   private vikingsNeedle?: Phaser.GameObjects.Graphics;
@@ -91,6 +96,10 @@ export class BossEraScene extends Phaser.Scene {
   private moonFuelKg = 8000;
   private moonHandle?: Phaser.GameObjects.Arc;
   private moonReadout?: Phaser.GameObjects.Text;
+  private flightAttempt?: FlightAttempt;
+  private flightSpeedMs = 0;
+  private flightHandle?: Phaser.GameObjects.Arc;
+  private flightReadout?: Phaser.GameObjects.Text;
 
   // Slider/frame geometry for the currently active round (set when each round builds its layout).
   private sliderX = 0;
@@ -213,11 +222,13 @@ export class BossEraScene extends Phaser.Scene {
     switch (era) {
       case 'egypt': return this.startEgyptRound(seed);
       case 'rome': return this.startRomeRound(seed);
+      case 'china': return this.startChinaRound(seed);
       case 'vikings': return this.startVikingsRound(seed);
       case 'castle': return this.startCastleRound(seed);
       case 'florence': return this.startFlorenceRound(seed);
       case 'revolution': return this.startRevolutionRound(seed);
       case 'industrial': return this.startIndustrialRound(seed);
+      case 'flight': return this.startFlightRound(seed);
       case 'moon': return this.startMoonRound();
     }
   }
@@ -227,11 +238,13 @@ export class BossEraScene extends Phaser.Scene {
     const hints: Record<string, string> = {
       egypt: 'Match the tool to the situation, just like raising the pyramid.',
       rome: 'Build the Roman numeral tile by tile, then open the lock.',
+      china: 'Match the trade good to what the merchant is asking for.',
       vikings: 'Drag inside the dial to aim toward the clue bearing.',
       castle: 'A bigger counterweight sends the shot farther.',
       florence: 'The golden ratio splits the frame unevenly — favor one side.',
       revolution: 'Watch the green decoded preview as you turn the wheel.',
       industrial: 'Output RPM = input RPM × drive teeth ÷ driven teeth.',
+      flight: 'Lift grows with speed squared, but too much speed breaks the frame.',
       moon: 'More fuel adds delta-v but also weight — balance thrust against mass.',
     };
     showToast(this, `💡 ${hints[era ?? ''] ?? 'Trust your training!'}`, PALETTE.gold);
@@ -257,6 +270,8 @@ export class BossEraScene extends Phaser.Scene {
       this.setIndustrialFromX(pointer.x);
     } else if (this.dragMode === 'moon' && this.moonHandle) {
       this.setMoonFromX(pointer.x);
+    } else if (this.dragMode === 'flight' && this.flightHandle) {
+      this.setFlightFromX(pointer.x);
     }
   }
 
@@ -341,6 +356,23 @@ export class BossEraScene extends Phaser.Scene {
         this.romeTiles.forEach((b) => { b.setInteractive({ useHandCursor: true }); b.setAlpha(1); });
       }
       this.resolveRound(success);
+    });
+  }
+
+  // --- China round: tap the right trade good. ---
+  private startChinaRound(seed: number): void {
+    this.chinaStop = generateStops(1, seed)[0];
+    const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, "Give the Chronarch's caravan the good it truly demands!", {
+      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
+    }).setOrigin(0.5);
+    this.puzzleLayer.add(text);
+    const spacing = 160;
+    const startX = GAME_WIDTH / 2 - (spacing * (GOODS.length - 1)) / 2;
+    GOODS.forEach((good, i) => {
+      const btn = createButton(this, startX + i * spacing, PUZZLE_Y + 80, GOOD_INFO[good].label, () => {
+        this.resolveRound(checkGood(this.chinaStop!, good));
+      }, { width: 150, height: 56 });
+      this.puzzleLayer.add(btn);
     });
   }
 
@@ -599,6 +631,48 @@ export class BossEraScene extends Phaser.Scene {
     const twr = thrustToWeightRatio(cfg);
     const dv = deltaV(cfg);
     this.moonReadout?.setText(`Fuel: ${this.moonFuelKg.toLocaleString()} kg — T/W ${twr.toFixed(2)}, Δv ${Math.round(dv)} m/s`);
+  }
+
+  // --- Flight round: airspeed slider (wing fixed). ---
+  private startFlightRound(seed: number): void {
+    this.flightAttempt = generateAttempts(1, seed)[0];
+    this.flightSpeedMs = 0;
+    const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Get the Flyer airborne in ${this.flightAttempt.windLabel} without breaking the frame.`, {
+      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },
+    }).setOrigin(0.5);
+
+    const sliderX = GAME_WIDTH / 2 - 200;
+    const sliderW = 400;
+    const sliderY = PUZZLE_Y + 40;
+    const track = this.add.rectangle(sliderX + sliderW / 2, sliderY, sliderW, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
+    this.flightHandle = this.add.circle(sliderX, sliderY, 16, 0x3b5f8a).setStrokeStyle(3, 0xffffff, 0.6)
+      .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(16, 16, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
+    this.flightReadout = this.add.text(GAME_WIDTH / 2, sliderY + 40, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
+
+    this.flightHandle.on('pointerdown', () => { this.dragMode = 'flight'; });
+    track.on('pointerdown', (p: Phaser.Input.Pointer) => { this.dragMode = 'flight'; this.setFlightFromX(p.x); });
+    this.puzzleLayer.add([text, track, this.flightHandle, this.flightReadout]);
+    this.sliderX = sliderX;
+    this.sliderW = sliderW;
+    this.updateFlightReadout();
+
+    this.setSubmit('🛫 Take Off!', () => {
+      const outcome = evaluateFlight(this.flightAttempt!, this.flightSpeedMs);
+      this.resolveRound(outcome.success);
+    });
+  }
+
+  private setFlightFromX(pointerX: number): void {
+    const ratio = Phaser.Math.Clamp((pointerX - this.sliderX) / this.sliderW, 0, 1);
+    this.flightSpeedMs = Math.round(ratio * MAX_SLIDER_SPEED_MS * 2) / 2;
+    this.flightHandle?.setX(this.sliderX + ratio * this.sliderW);
+    this.updateFlightReadout();
+  }
+
+  private updateFlightReadout(): void {
+    if (!this.flightAttempt) return;
+    const liftN = liftForceN({ airspeedMs: this.flightSpeedMs, wingAreaM2: this.flightAttempt.wingAreaM2, liftCoefficient: this.flightAttempt.liftCoefficient });
+    this.flightReadout?.setText(`${this.flightSpeedMs.toFixed(1)} m/s → lift ${liftN.toFixed(0)} N (need ${this.flightAttempt.weightN.toFixed(0)} N, limit ${this.flightAttempt.maxSafeSpeedMs} m/s)`);
   }
 
   private victory(): void {

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { checkAnswer, generateBlocks, TOOLS } from '../src/core/puzzles/egypt';
 import { checkLock, generateLockPuzzle, toRoman } from '../src/core/puzzles/rome';
+import { checkGood, generateStops, GOODS } from '../src/core/puzzles/china';
 import { evaluateLeg, generateVoyage } from '../src/core/puzzles/vikings';
 import { evaluateShot, generateTargets, MAX_COUNTERWEIGHT_KG, MIN_COUNTERWEIGHT_KG } from '../src/core/puzzles/castle';
 import { evaluatePlacement, generateCanvases } from '../src/core/puzzles/florence';
 import { checkShift, generateCiphers } from '../src/core/puzzles/revolution';
 import { generateSolvableOrder, isOrderSolvable } from '../src/core/puzzles/industrial';
+import { evaluateFlight, generateAttempts, MAX_SLIDER_SPEED_MS } from '../src/core/puzzles/flight';
 import { evaluateLaunch } from '../src/core/puzzles/moon';
 
 /**
@@ -84,6 +86,27 @@ describe('boss trial solvability sweep', () => {
     for (let seed = 0; seed < SEEDS; seed++) {
       const order = generateSolvableOrder(seed, 20);
       expect(isOrderSolvable(order, 20)).toBe(true);
+    }
+  });
+
+  it('china: some good always matches the rolled merchant request', () => {
+    for (let seed = 0; seed < SEEDS; seed++) {
+      const stop = generateStops(1, seed)[0];
+      expect(GOODS.some((good) => checkGood(stop, good))).toBe(true);
+    }
+  });
+
+  it('flight: some airspeed on the slider (0.5 m/s steps) always threads the safe window', () => {
+    for (let seed = 0; seed < SEEDS; seed++) {
+      const attempt = generateAttempts(1, seed)[0];
+      let solved = false;
+      for (let speed = 0; speed <= MAX_SLIDER_SPEED_MS; speed += 0.5) {
+        if (evaluateFlight(attempt, speed).success) {
+          solved = true;
+          break;
+        }
+      }
+      expect(solved).toBe(true);
     }
   });
 

@@ -23,10 +23,11 @@ export class MuseumScene extends Phaser.Scene {
       color: PALETTE.gold,
     }).setOrigin(0.5);
 
-    const cols = 4;
-    const cellW = 210;
+    const cols = ARTIFACTS.length > 8 ? 5 : 4;
+    const cardW = cols > 4 ? 150 : 180;
+    const cellW = GAME_WIDTH / cols;
     const cellH = 180;
-    const startX = (GAME_WIDTH - cols * cellW) / 2 + cellW / 2;
+    const startX = cellW / 2;
     const startY = 150;
 
     ARTIFACTS.forEach((artifact, i) => {
@@ -38,9 +39,9 @@ export class MuseumScene extends Phaser.Scene {
 
       const card = this.add.graphics();
       card.fillStyle(collected ? 0x3a2a5c : 0x241a38, 1);
-      card.fillRoundedRect(x - 90, y - 60, 180, 150, 12);
+      card.fillRoundedRect(x - cardW / 2, y - 60, cardW, 150, 12);
       card.lineStyle(2, collected ? 0xffd34d : 0x4a3f66, 1);
-      card.strokeRoundedRect(x - 90, y - 60, 180, 150, 12);
+      card.strokeRoundedRect(x - cardW / 2, y - 60, cardW, 150, 12);
 
       this.add.text(x, y - 25, collected ? '🏺' : '❔', { fontSize: '40px' }).setOrigin(0.5);
       this.add.text(x, y + 20, collected ? artifact.name : '???', {
@@ -48,14 +49,14 @@ export class MuseumScene extends Phaser.Scene {
         fontSize: '14px',
         color: collected ? PALETTE.textLight : PALETTE.textMuted,
         align: 'center',
-        wordWrap: { width: 160 },
+        wordWrap: { width: cardW - 20 },
       }).setOrigin(0.5, 0);
       this.add.text(x, y + 55, collected ? artifact.blurb : 'Find this in its era.', {
         fontFamily: FONT_FAMILY,
         fontSize: '11px',
         color: PALETTE.textMuted,
         align: 'center',
-        wordWrap: { width: 160 },
+        wordWrap: { width: cardW - 20 },
       }).setOrigin(0.5, 0);
     });
 

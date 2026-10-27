@@ -23,11 +23,13 @@ export interface ArtifactDef {
 export const ARTIFACTS: ArtifactDef[] = [
   { id: 'egypt-scarab', eraId: 'egypt', name: 'Golden Scarab', blurb: 'A lucky charm buried with pharaohs.' },
   { id: 'rome-seal', eraId: 'rome', name: 'Legion Signet Ring', blurb: "A centurion's wax-stamp ring." },
+  { id: 'china-silk', eraId: 'china', name: 'Bolt of Han Silk', blurb: 'Carried west along the Silk Road, once worth its weight in gold.' },
   { id: 'vikings-compass', eraId: 'vikings', name: 'Sunstone', blurb: 'A crystal said to reveal the sun through clouds.' },
   { id: 'castle-key', eraId: 'castle', name: 'Iron Keep Key', blurb: 'Opens the castle armory.' },
   { id: 'florence-brush', eraId: 'florence', name: "Painter's Brush", blurb: 'Used in a Florence workshop.' },
   { id: 'revolution-quill', eraId: 'revolution', name: "Founder's Quill", blurb: 'Ink still dried on the nib.' },
   { id: 'industrial-gear', eraId: 'industrial', name: 'Factory Gearwheel', blurb: 'From an early steam engine.' },
+  { id: 'flight-propeller', eraId: 'flight', name: 'Flyer Propeller Fragment', blurb: "A sliver of the Wright brothers' hand-carved spruce propeller." },
   { id: 'moon-flag', eraId: 'moon', name: 'Mission Patch', blurb: 'Stitched for a journey to the Moon.' },
 ];
 
