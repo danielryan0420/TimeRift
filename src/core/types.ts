@@ -37,6 +37,7 @@ export interface PlayerProfile {
   muted: boolean;
   eraProgress: Record<EraId, EraProgress>;
   artifactsCollected: string[];
+  bossDefeated: boolean;
 }
 
 export interface SaveData {

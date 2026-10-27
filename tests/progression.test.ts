@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { computeStars, createDefaultProfile, isEraUnlocked, recordEraCompletion, totalStars } from '../src/core/progression';
+import {
+  computeStars,
+  createDefaultProfile,
+  isBossUnlocked,
+  isEraUnlocked,
+  recordBossVictory,
+  recordEraCompletion,
+  totalStars,
+} from '../src/core/progression';
+import { ERA_ORDER } from '../src/core/types';
 
 describe('computeStars', () => {
   const opts = { mistakeLimit: 1, timeTargetSeconds: 60 };
@@ -63,5 +72,24 @@ describe('profile progression', () => {
     profile = recordEraCompletion(profile, 'rome', 3, { mistakes: 0, hintsUsed: 0, timeSeconds: 10 });
     expect(totalStars(profile)).toBe(6);
     expect(profile.unlockedSkins).toContain('bronze');
+  });
+});
+
+describe('final boss gating', () => {
+  it('stays locked until every era is completed', () => {
+    let profile = createDefaultProfile('p1', 'Rin');
+    expect(isBossUnlocked(profile)).toBe(false);
+    for (const era of ERA_ORDER.slice(0, -1)) {
+      profile = recordEraCompletion(profile, era, 3, { mistakes: 0, hintsUsed: 0, timeSeconds: 10 });
+    }
+    expect(isBossUnlocked(profile)).toBe(false);
+    profile = recordEraCompletion(profile, ERA_ORDER[ERA_ORDER.length - 1], 3, { mistakes: 0, hintsUsed: 0, timeSeconds: 10 });
+    expect(isBossUnlocked(profile)).toBe(true);
+  });
+
+  it('records a boss victory', () => {
+    const profile = createDefaultProfile('p1', 'Rin');
+    expect(profile.bossDefeated).toBe(false);
+    expect(recordBossVictory(profile).bossDefeated).toBe(true);
   });
 });

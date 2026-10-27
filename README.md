@@ -1,12 +1,15 @@
 # TIME RIFT
 
 A time-traveling history & science adventure built for curious middle
-schoolers. A villain has shattered the timeline — jump through swirling
-time rifts to eras like Ancient Egypt, Rome, the Viking seas, and the Moon
-landing, and mend each one by solving puzzles woven into real history and
-science (not quizzes): pick the right tool to raise a pyramid block, crack
-a Roman numeral vault lock, steer a longship by the North Star, and balance
-thrust against fuel to launch a rocket.
+schoolers. A villain called the Chronarch has shattered the timeline —
+jump through swirling time rifts across eight eras, from Ancient Egypt to
+the Moon landing, and mend each one by solving puzzles woven into real
+history and science (not quizzes): pick the right tool to raise a pyramid
+block, crack a Roman numeral vault lock, steer a longship by the North
+Star, aim a trebuchet, compose a Renaissance canvas by the golden ratio,
+crack a Culper Ring cipher wheel, set a factory's gear ratio, and balance
+thrust against fuel to launch a rocket. Mend every era and the Chronarch
+itself challenges you to a final showdown mixing a trial from each one.
 
 Built with **Vite + TypeScript + Phaser 3**. No accounts, no ads, no
 tracking, no network calls during play — it's a static site that also works
@@ -43,11 +46,12 @@ See [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) for a kid-friendly version of
 these instructions, and [`docs/REBUILD.md`](docs/REBUILD.md) for how the
 project is put together and how to extend it.
 
-## What's built in this pass
+## What's built
 
-Four fully playable eras, each with its own 2.5D parallax art, animated
-time-rift transitions, particle effects, synthesized sound effects (with a
-mute toggle), hints, scoring, and a historical "what really happened" card:
+All eight eras are fully playable, each with its own 2.5D parallax art,
+animated time-rift transitions, particle effects, synthesized sound effects
+(with a mute toggle), hints, scoring, and a historical "what really
+happened" card:
 
 - **Ancient Egypt** — match the right building technique (ramp, lever,
   sledge, wet sand) to each block's situation.
@@ -55,21 +59,28 @@ mute toggle), hints, scoring, and a historical "what really happened" card:
   numeral locks.
 - **Viking Seas** — rotate a star compass to steer by Polaris across
   several legs of a voyage.
+- **Medieval Castle** — tune a trebuchet's counterweight and release angle
+  (real projectile-motion physics) to hit siege targets.
+- **Renaissance Florence** — drag a focal line to the golden-ratio point of
+  a canvas, the way Renaissance painters composed their work.
+- **American Revolution** — rotate a Culper Ring cipher wheel to decode
+  intercepted messages.
+- **Industrial Revolution** — set a drive/driven gear ratio to hit a target
+  RPM, the same math that powered a steam-driven factory floor.
 - **Moon Landing** — balance real thrust-to-weight ratio and the
   Tsiolkovsky rocket equation against a fuel slider to reach orbit.
+
+Finish all eight and a **Final Showdown** unlocks: a boss fight against the
+Chronarch that cycles through one trial from every era in a row, tracked by
+a boss-HP bar and player hearts, reusing each era's own puzzle logic.
 
 Shared systems: multi-profile local save (`localStorage`), era progression
 with stars/artifacts/gadget-skin unlocks, a reusable hint system, a swirling
 portal scene transition, and a PWA manifest + service worker for offline
 installs.
 
-### Next steps (not yet built)
+### Possible next steps
 
-Four more eras are stubbed as "Coming soon" on the map and share the same
-engine, so they follow the pattern in `docs/REBUILD.md`:
-
-- Medieval Castle, Renaissance Florence, the American Revolution, the
-  Industrial Revolution.
 - Real CC0/public-domain art or SFX assets could replace/augment the
   procedural visuals (see `CREDITS.md` for how to attribute them).
 - Gadget skins currently only change a name/unlock state — give them a

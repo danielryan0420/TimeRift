@@ -75,7 +75,17 @@ export function createDefaultProfile(id: string, name: string): PlayerProfile {
     muted: false,
     eraProgress,
     artifactsCollected: [],
+    bossDefeated: false,
   };
+}
+
+/** The final showdown unlocks once every era's timeline has been mended. */
+export function isBossUnlocked(profile: PlayerProfile): boolean {
+  return ERA_ORDER.every((era) => profile.eraProgress[era].completed);
+}
+
+export function recordBossVictory(profile: PlayerProfile): PlayerProfile {
+  return { ...profile, bossDefeated: true };
 }
 
 /** Apply an era completion result to a profile, returning a new updated profile (immutable). */

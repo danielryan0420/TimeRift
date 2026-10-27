@@ -4,10 +4,16 @@ import { ProfileSelectScene } from './scenes/ProfileSelectScene';
 import { HubScene } from './scenes/HubScene';
 import { MuseumScene } from './scenes/MuseumScene';
 import { EraCompleteScene } from './scenes/EraCompleteScene';
+import { BossCompleteScene } from './scenes/BossCompleteScene';
 import { EgyptEraScene } from './eras/EgyptEraScene';
 import { RomeEraScene } from './eras/RomeEraScene';
 import { VikingsEraScene } from './eras/VikingsEraScene';
+import { CastleEraScene } from './eras/CastleEraScene';
+import { FlorenceEraScene } from './eras/FlorenceEraScene';
+import { RevolutionEraScene } from './eras/RevolutionEraScene';
+import { IndustrialEraScene } from './eras/IndustrialEraScene';
 import { MoonEraScene } from './eras/MoonEraScene';
+import { BossEraScene } from './eras/BossEraScene';
 import { GAME_HEIGHT, GAME_WIDTH } from './ui/theme';
 
 new Phaser.Game({
@@ -29,10 +35,16 @@ new Phaser.Game({
     HubScene,
     MuseumScene,
     EraCompleteScene,
+    BossCompleteScene,
     EgyptEraScene,
     RomeEraScene,
     VikingsEraScene,
+    CastleEraScene,
+    FlorenceEraScene,
+    RevolutionEraScene,
+    IndustrialEraScene,
     MoonEraScene,
+    BossEraScene,
   ],
 });
 
