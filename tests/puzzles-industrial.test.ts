@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateOrder, generateOrders, outputRpm } from '../src/core/puzzles/industrial';
+import {
+  evaluateOrder,
+  generateOrders,
+  generateSolvableOrder,
+  isOrderSolvable,
+  outputRpm,
+} from '../src/core/puzzles/industrial';
 
 describe('gear ratio factory floor', () => {
   it('computes output rpm as inputRpm * driveTeeth / drivenTeeth', () => {
@@ -25,5 +31,26 @@ describe('gear ratio factory floor', () => {
     expect(good.success).toBe(true);
     const bad = evaluateOrder(order, { driveTeeth: 10, drivenTeeth: 100 });
     expect(bad.success).toBe(order.targetRpm === outputRpm({ inputRpm: order.inputRpm, driveTeeth: 10, drivenTeeth: 100 }));
+  });
+});
+
+describe('boss trial solvability (fixed drive gear, no gear picker)', () => {
+  it('a raw roll can be unreachable with drive gear fixed at 20 teeth (regression guard)', () => {
+    // Low input + high target is the known bad zone: input=80, target=199 needs
+    // output >= 187, but with driveTeeth=20 the max reachable output at drivenTeeth=10
+    // is only 160 — unreachable regardless of driven-gear slider position.
+    const order = { id: 0, inputRpm: 80, targetRpm: 199, toleranceRpm: 12, machine: 'test' };
+    expect(isOrderSolvable(order, 20)).toBe(false);
+  });
+
+  it('generateSolvableOrder always returns a solvable order for a fixed drive gear', () => {
+    for (let seed = 0; seed < 500; seed++) {
+      const order = generateSolvableOrder(seed, 20);
+      expect(isOrderSolvable(order, 20)).toBe(true);
+    }
+  });
+
+  it('is deterministic for a given seed', () => {
+    expect(generateSolvableOrder(42, 20)).toEqual(generateSolvableOrder(42, 20));
   });
 });

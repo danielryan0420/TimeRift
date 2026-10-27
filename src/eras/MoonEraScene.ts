@@ -1,6 +1,15 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { deltaV, evaluateLaunch, thrustToWeightRatio, type RocketConfig } from '../core/puzzles/moon';
+import {
+  deltaV,
+  evaluateLaunch,
+  thrustToWeightRatio,
+  ENGINES,
+  EXHAUST_VELOCITY_MS,
+  MAX_FUEL_KG,
+  MISSIONS,
+  type RocketConfig,
+} from '../core/puzzles/moon';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
@@ -13,26 +22,8 @@ import { portalIn, portalOut } from '../ui/PortalTransition';
 import { showToast } from '../ui/toast';
 import type { EraCompleteData } from '../scenes/EraCompleteScene';
 
-interface Mission {
-  label: string;
-  dryMassKg: number;
-  requiredDeltaVMs: number;
-}
-
-const MISSIONS: Mission[] = [
-  { label: 'Test Hop', dryMassKg: 4000, requiredDeltaVMs: 2600 },
-  { label: 'Orbit Insertion', dryMassKg: 5000, requiredDeltaVMs: 3200 },
-  { label: 'Trans-Lunar Injection', dryMassKg: 6000, requiredDeltaVMs: 3700 },
-];
-
-const ENGINES = [
-  { id: 'small', label: 'Small', thrustN: 900_000 },
-  { id: 'medium', label: 'Medium', thrustN: 1_600_000 },
-  { id: 'large', label: 'Large', thrustN: 2_400_000 },
-];
-
-const EXHAUST_VELOCITY = 3000;
-const MAX_FUEL = 24_000;
+const EXHAUST_VELOCITY = EXHAUST_VELOCITY_MS;
+const MAX_FUEL = MAX_FUEL_KG;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 120 };
 
 const SLIDER_X = GAME_WIDTH / 2 - 220;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canLiftOff, deltaV, evaluateLaunch, thrustToWeightRatio } from '../src/core/puzzles/moon';
+import { canLiftOff, deltaV, ENGINES, evaluateLaunch, MISSIONS, thrustToWeightRatio } from '../src/core/puzzles/moon';
 
 const base = { thrustN: 2_000_000, dryMassKg: 5000, fuelMassKg: 15000, exhaustVelocityMs: 3000 };
 
@@ -41,5 +41,47 @@ describe('rocket force balance', () => {
     const tuned = { thrustN: 2_000_000, dryMassKg: 5000, fuelMassKg: 12000, exhaustVelocityMs: 3000 };
     const result = evaluateLaunch(tuned, 3000);
     expect(result.success).toBe(true);
+  });
+});
+
+describe('moon mission balance: engine choice must matter', () => {
+  const MAX_FUEL = 24_000;
+  const FUEL_STEP = 200;
+
+  function anyFuelWorks(thrustN: number, mission: (typeof MISSIONS)[number]): boolean {
+    for (let fuel = 0; fuel <= MAX_FUEL; fuel += FUEL_STEP) {
+      const result = evaluateLaunch(
+        { thrustN, dryMassKg: mission.dryMassKg, fuelMassKg: fuel, exhaustVelocityMs: 3000 },
+        mission.requiredDeltaVMs,
+      );
+      if (result.success) return true;
+    }
+    return false;
+  }
+
+  it('every mission is solvable with at least one engine', () => {
+    for (const mission of MISSIONS) {
+      const solvable = ENGINES.some((engine) => anyFuelWorks(engine.thrustN, mission));
+      expect(solvable).toBe(true);
+    }
+  });
+
+  it('the Small engine cannot reach the hardest mission (engine pick is not cosmetic)', () => {
+    const small = ENGINES.find((e) => e.id === 'small')!;
+    const hardest = MISSIONS[MISSIONS.length - 1];
+    expect(anyFuelWorks(small.thrustN, hardest)).toBe(false);
+  });
+
+  it('the Small engine still clears the easiest mission', () => {
+    const small = ENGINES.find((e) => e.id === 'small')!;
+    const easiest = MISSIONS[0];
+    expect(anyFuelWorks(small.thrustN, easiest)).toBe(true);
+  });
+
+  it('the Large engine clears every mission', () => {
+    const large = ENGINES.find((e) => e.id === 'large')!;
+    for (const mission of MISSIONS) {
+      expect(anyFuelWorks(large.thrustN, mission)).toBe(true);
+    }
   });
 });

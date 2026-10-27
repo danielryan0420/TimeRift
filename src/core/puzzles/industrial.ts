@@ -49,3 +49,31 @@ export function evaluateOrder(order: FactoryOrder, cfg: Omit<GearConfig, 'inputR
   const diffRpm = Math.abs(rpm - order.targetRpm);
   return { orderId: order.id, outputRpm: rpm, success: diffRpm <= order.toleranceRpm, diffRpm };
 }
+
+/** Whether some driven-gear setting in range can hit this order with a fixed drive gear. */
+export function isOrderSolvable(
+  order: FactoryOrder,
+  driveTeeth: number,
+  minDriven = MIN_DRIVEN_TEETH,
+  maxDriven = MAX_DRIVEN_TEETH,
+): boolean {
+  for (let driven = minDriven; driven <= maxDriven; driven++) {
+    if (evaluateOrder(order, { driveTeeth, drivenTeeth: driven }).success) return true;
+  }
+  return false;
+}
+
+/**
+ * Boss trials fix the drive gear (no era-style gear picker), which occasionally makes a
+ * randomly rolled order mathematically unreachable within the driven-gear slider's range.
+ * Reroll with a derived seed until the order is solvable, so the trial never soft-locks.
+ */
+export function generateSolvableOrder(seed: number, driveTeeth: number): FactoryOrder {
+  let order = generateOrders(1, seed)[0];
+  let attempt = 1;
+  while (!isOrderSolvable(order, driveTeeth) && attempt < 50) {
+    order = generateOrders(1, seed + attempt * 7919)[0];
+    attempt += 1;
+  }
+  return order;
+}

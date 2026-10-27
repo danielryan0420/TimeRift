@@ -15,7 +15,7 @@ import { evaluateLeg, generateVoyage, type VoyageLeg } from '../core/puzzles/vik
 import { evaluateShot, generateTargets, projectileRangeM, type SiegeTarget } from '../core/puzzles/castle';
 import { evaluatePlacement, generateCanvases, type CanvasChallenge } from '../core/puzzles/florence';
 import { caesarDecode, checkShift, generateCiphers, type CipherChallenge } from '../core/puzzles/revolution';
-import { evaluateOrder, generateOrders, outputRpm, type FactoryOrder } from '../core/puzzles/industrial';
+import { evaluateOrder, generateSolvableOrder, outputRpm, type FactoryOrder } from '../core/puzzles/industrial';
 import { deltaV, evaluateLaunch, thrustToWeightRatio } from '../core/puzzles/moon';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
@@ -41,7 +41,14 @@ const ERA_LABEL: Record<string, string> = {
   moon: 'Moon Landing',
 };
 
-const MOON_MISSION = { dryMassKg: 5500, requiredDeltaVMs: 3400, thrustN: 1_600_000, exhaustVelocityMs: 3000, maxFuelKg: 24_000 };
+const MOON_MISSION = { dryMassKg: 5500, requiredDeltaVMs: 3400, thrustN: 300_000, exhaustVelocityMs: 3000, maxFuelKg: 24_000 };
+
+/**
+ * 45 degrees maximizes range, so a counterweight-only slider can never hit short-range
+ * targets at that angle no matter how light it's set — 20 degrees still spans the full
+ * generated target distance range (see tests/boss-solvability.test.ts).
+ */
+const BOSS_CASTLE_ANGLE_DEG = 20;
 
 export class BossEraScene extends Phaser.Scene {
   private bossState!: BossState;
@@ -378,7 +385,7 @@ export class BossEraScene extends Phaser.Scene {
     this.vikingsNeedle.fillCircle(GAME_WIDTH / 2, dialY, 7);
   }
 
-  // --- Castle round: one slider (counterweight, angle fixed at 45 deg). ---
+  // --- Castle round: one slider (counterweight, angle fixed at BOSS_CASTLE_ANGLE_DEG). ---
   private startCastleRound(seed: number): void {
     this.castleTarget = generateTargets(1, seed)[0];
     this.castleCwKg = 1500;
@@ -402,7 +409,7 @@ export class BossEraScene extends Phaser.Scene {
     this.updateCastleReadout();
 
     this.setSubmit('🔥 Fire!', () => {
-      const outcome = evaluateShot(this.castleTarget!, { counterweightKg: this.castleCwKg, releaseAngleDeg: 45 });
+      const outcome = evaluateShot(this.castleTarget!, { counterweightKg: this.castleCwKg, releaseAngleDeg: BOSS_CASTLE_ANGLE_DEG });
       this.resolveRound(outcome.success);
     });
   }
@@ -415,7 +422,7 @@ export class BossEraScene extends Phaser.Scene {
   }
 
   private updateCastleReadout(): void {
-    const range = projectileRangeM({ counterweightKg: this.castleCwKg, releaseAngleDeg: 45 });
+    const range = projectileRangeM({ counterweightKg: this.castleCwKg, releaseAngleDeg: BOSS_CASTLE_ANGLE_DEG });
     this.castleReadout?.setText(`${this.castleCwKg} kg counterweight → predicted range ${range.toFixed(0)} m`);
   }
 
@@ -511,7 +518,7 @@ export class BossEraScene extends Phaser.Scene {
 
   // --- Industrial round: slider for driven gear teeth (drive fixed at 20). ---
   private startIndustrialRound(seed: number): void {
-    this.industrialOrder = generateOrders(1, seed)[0];
+    this.industrialOrder = generateSolvableOrder(seed, 20);
     this.industrialDrivenTeeth = 40;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Drive ${this.industrialOrder.machine} at ${this.industrialOrder.targetRpm} RPM (input: ${this.industrialOrder.inputRpm} RPM, drive gear: 20 teeth).`, {
       fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },

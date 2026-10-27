@@ -55,3 +55,35 @@ export function evaluateLaunch(cfg: RocketConfig, requiredDeltaVMs: number): Lau
 }
 
 export { MAX_STRUCTURAL_MASS_KG, GRAVITY_MS2 };
+
+export interface MoonEngine {
+  id: string;
+  label: string;
+  thrustN: number;
+}
+
+/**
+ * Thrust is sized so the Small engine can lift the easy missions but physically cannot
+ * reach Trans-Lunar Injection's required delta-v within the structural mass cap — the
+ * engine pick has to matter, not just the fuel slider (see tests/puzzles-moon.test.ts).
+ */
+export const ENGINES: MoonEngine[] = [
+  { id: 'small', label: 'Small', thrustN: 150_000 },
+  { id: 'medium', label: 'Medium', thrustN: 300_000 },
+  { id: 'large', label: 'Large', thrustN: 600_000 },
+];
+
+export interface MoonMission {
+  label: string;
+  dryMassKg: number;
+  requiredDeltaVMs: number;
+}
+
+export const MISSIONS: MoonMission[] = [
+  { label: 'Test Hop', dryMassKg: 4000, requiredDeltaVMs: 2600 },
+  { label: 'Orbit Insertion', dryMassKg: 5000, requiredDeltaVMs: 3200 },
+  { label: 'Trans-Lunar Injection', dryMassKg: 6000, requiredDeltaVMs: 3700 },
+];
+
+export const EXHAUST_VELOCITY_MS = 3000;
+export const MAX_FUEL_KG = 24_000;
