@@ -34,3 +34,83 @@ html, body {
   max-height: 100%;
   touch-action: none;
 }
+
+.rift-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 2, 15, 0.72);
+  touch-action: manipulation;
+}
+
+.rift-modal-panel {
+  width: min(360px, 100%);
+  background: #1a0b2e;
+  border: 2px solid #7c3aed;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.rift-modal-title {
+  margin: 0;
+  font-size: 22px;
+  color: #f5f0ff;
+  text-align: center;
+}
+
+.rift-modal-input {
+  font-size: 16px;
+  font-family: inherit;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 2px solid #7c3aed;
+  background: #120a24;
+  color: #f5f0ff;
+  outline: none;
+}
+
+.rift-modal-input:focus {
+  border-color: #22d3ee;
+}
+
+.rift-modal-error {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: #ff6b6b;
+  text-align: center;
+}
+
+.rift-modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.rift-modal-btn {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: #2a2140;
+  color: #f5f0ff;
+  font-family: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.rift-modal-btn-primary {
+  background: #7c3aed;
+}
+
+.rift-modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

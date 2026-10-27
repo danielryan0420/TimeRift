@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createProfile, deleteProfile, getActiveProfile, loadSave, persistSave, selectProfile, updateProfile } from '../src/core/save';
+import { createProfile, deleteProfile, getActiveProfile, loadSave, persistSave, renameProfile, selectProfile, updateProfile } from '../src/core/save';
 
 describe('save persistence', () => {
   beforeEach(() => {
@@ -56,5 +56,39 @@ describe('save persistence', () => {
     localStorage.setItem('timerift:save:v1', '{not json');
     const save = loadSave();
     expect(save.profiles).toEqual([]);
+  });
+
+  it('creates a profile with a trimmed, length-capped name', () => {
+    let save = loadSave();
+    ({ save } = createProfile(save, '  Explorer Max  '.repeat(5), () => 'id-0'));
+    expect(save.profiles[0].name).toHaveLength(24);
+    expect(save.profiles[0].name.startsWith(' ')).toBe(false);
+  });
+
+  it('falls back to "Explorer" when creating a profile with a blank name', () => {
+    let save = loadSave();
+    ({ save } = createProfile(save, '   ', () => 'id-0'));
+    expect(save.profiles[0].name).toBe('Explorer');
+  });
+
+  it('renames a profile to a valid trimmed name', () => {
+    let save = loadSave();
+    ({ save } = createProfile(save, 'Max', () => 'id-0'));
+    save = renameProfile(save, 'id-0', '  Maxine  ');
+    expect(getActiveProfile(save)?.name).toBe('Maxine');
+  });
+
+  it('ignores a rename to an empty or whitespace-only name', () => {
+    let save = loadSave();
+    ({ save } = createProfile(save, 'Max', () => 'id-0'));
+    const unchanged = renameProfile(save, 'id-0', '   ');
+    expect(getActiveProfile(unchanged)?.name).toBe('Max');
+  });
+
+  it('is a no-op when renaming an unknown profile id', () => {
+    let save = loadSave();
+    ({ save } = createProfile(save, 'Max', () => 'id-0'));
+    const unchanged = renameProfile(save, 'does-not-exist', 'New Name');
+    expect(unchanged).toBe(save);
   });
 });

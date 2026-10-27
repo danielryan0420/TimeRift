@@ -1,4 +1,5 @@
 import { createDefaultProfile } from './progression';
+import { sanitizeName } from './names';
 import type { PlayerProfile, SaveData } from './types';
 
 export const STORAGE_KEY = 'timerift:save:v1';
@@ -28,7 +29,7 @@ export function createProfile(
   name: string,
   idFactory: () => string = () => crypto.randomUUID(),
 ): { save: SaveData; profile: PlayerProfile } {
-  const profile = createDefaultProfile(idFactory(), name.trim().slice(0, 24) || 'Explorer');
+  const profile = createDefaultProfile(idFactory(), sanitizeName(name) || 'Explorer');
   const next: SaveData = {
     ...save,
     profiles: [...save.profiles, profile],
@@ -53,6 +54,15 @@ export function updateProfile(save: SaveData, profile: PlayerProfile): SaveData 
     ...save,
     profiles: save.profiles.map((p) => (p.id === profile.id ? profile : p)),
   };
+}
+
+/** No-ops if the name is empty/whitespace-only so a bad rename can never wipe a profile's name. */
+export function renameProfile(save: SaveData, id: string, name: string): SaveData {
+  const clean = sanitizeName(name);
+  if (!clean) return save;
+  const profile = save.profiles.find((p) => p.id === id);
+  if (!profile) return save;
+  return updateProfile(save, { ...profile, name: clean });
 }
 
 export function getActiveProfile(save: SaveData): PlayerProfile | null {
