@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
+import { hasSeenIntro } from '../core/intro';
 import { ensureParticleTexture } from '../ui/particles';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 
@@ -26,6 +27,6 @@ export class BootScene extends Phaser.Scene {
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
-    this.time.delayedCall(400, () => this.scene.start('ProfileSelect'));
+    this.time.delayedCall(400, () => this.scene.start(hasSeenIntro() ? 'ProfileSelect' : 'StoryIntro'));
   }
 }

@@ -75,13 +75,24 @@ export class HubScene extends Phaser.Scene {
       color: PALETTE.gold,
     });
 
+    const eraCount = ERA_ORDER.filter((era) => profile.eraProgress[era].completed).length;
+    const goalLine = isBossUnlocked(profile)
+      ? '🏺 All eras mended — the Chronarch awaits!'
+      : `🏺 ${eraCount} / ${ERA_ORDER.length} eras mended — tap a glowing portal to continue!`;
+    this.add.text(16, 116, goalLine, {
+      fontFamily: FONT_FAMILY,
+      fontSize: '14px',
+      color: PALETTE.textMuted,
+    });
+
     createButton(this, GAME_WIDTH - 110, 40, '🏺 Museum', () => this.scene.start('Museum'), { width: 170, height: 48 });
     createButton(this, GAME_WIDTH - 110, 100, '🔄 Switch', () => this.scene.start('ProfileSelect'), { width: 170, height: 44, fontSize: 16 });
 
     this.drawPath();
 
+    const nextUpEra = ERA_ORDER.find((era) => isEraUnlocked(profile, era) && !profile.eraProgress[era].completed);
     for (const era of ERA_ORDER) {
-      this.drawNode(era, profile);
+      this.drawNode(era, profile, era === nextUpEra);
     }
     this.drawBossNode(profile);
 
@@ -105,15 +116,39 @@ export class HubScene extends Phaser.Scene {
     g.strokePath();
   }
 
-  private drawNode(era: EraId, profile: ReturnType<GameState['requireProfile']>): void {
+  private drawNode(era: EraId, profile: ReturnType<GameState['requireProfile']>, isNextUp: boolean): void {
     const pos = NODE_POSITIONS[era];
     const theme = ERA_THEME[era];
     const unlocked = isEraUnlocked(profile, era);
     const progress = profile.eraProgress[era];
 
+    if (unlocked) {
+      const glow = this.add.circle(pos.x, pos.y, 44, theme.accent, 0.35);
+      this.tweens.add({
+        targets: glow,
+        scale: { from: 1, to: 1.2 },
+        alpha: { from: 0.35, to: 0.08 },
+        duration: 1100,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
     const circle = this.add.circle(pos.x, pos.y, 34, unlocked ? theme.accent : 0x3a3450, 1)
-      .setStrokeStyle(3, 0xffffff, unlocked ? 0.6 : 0.2)
+      .setStrokeStyle(3, isNextUp ? 0xffd34d : 0xffffff, unlocked ? (isNextUp ? 1 : 0.6) : 0.2)
       .setInteractive({ useHandCursor: unlocked });
+
+    if (unlocked) {
+      this.tweens.add({
+        targets: circle,
+        scale: { from: 1, to: isNextUp ? 1.1 : 1.04 },
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
 
     this.add.text(pos.x, pos.y, unlocked ? ERA_ICON[era] : '🔒', {
       fontSize: '28px',
@@ -131,10 +166,20 @@ export class HubScene extends Phaser.Scene {
       this.add.text(pos.x, pos.y - 46, '⭐'.repeat(progress.stars) + '☆'.repeat(3 - progress.stars), {
         fontSize: '14px',
       }).setOrigin(0.5);
+    } else if (isNextUp) {
+      const tag = this.add.text(pos.x, pos.y - 52, '👉 Start here!', {
+        fontFamily: FONT_FAMILY,
+        fontSize: '13px',
+        color: PALETTE.gold,
+        align: 'center',
+      }).setOrigin(0.5);
+      this.tweens.add({ targets: tag, y: { from: pos.y - 52, to: pos.y - 60 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 
     circle.on('pointerup', () => {
       if (!unlocked) {
+        sfx.error();
+        this.tweens.add({ targets: circle, angle: { from: -6, to: 6 }, duration: 60, yoyo: true, repeat: 4, onComplete: () => circle.setAngle(0) });
         showToast(this, 'Finish the previous era to unlock this one!', PALETTE.danger);
         return;
       }

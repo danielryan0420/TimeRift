@@ -13,6 +13,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
@@ -45,6 +46,7 @@ export class ChinaEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private requestText!: Phaser.GameObjects.Text;
   private progressStops: Phaser.GameObjects.Rectangle[] = [];
   private locked = false;
@@ -67,13 +69,14 @@ export class ChinaEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Ancient China: The Silk Road Caravan',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Load the right trade good for each of the 6 caravan stops.');
 
     this.add.text(GAME_WIDTH / 2, 100, 'Load the right trade good for each stop on the road!', {
       fontFamily: FONT_FAMILY,
@@ -98,6 +101,23 @@ export class ChinaEraScene extends Phaser.Scene {
     this.showCurrentStop();
 
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'The Silk Road Caravan',
+      line: 'Read what each merchant wants, then tap the trade good that best matches their request.',
+      quiz: {
+        question: 'Quick check: which good would a scholar who wants something to write on want?',
+        options: [
+          { label: 'Paper', correct: true },
+          { label: 'Silk' },
+          { label: 'Tea' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -194,6 +214,7 @@ export class ChinaEraScene extends Phaser.Scene {
 
     if (correct) {
       sfx.success();
+      this.hud.registerStreak(true);
       this.progressStops[this.index].setFillStyle(0xd4af37);
       burstSuccess(this, this.progressStops[this.index].x, this.progressStops[this.index].y);
       this.index += 1;
@@ -205,9 +226,15 @@ export class ChinaEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, GAME_WIDTH / 2, GAME_HEIGHT - 90);
       showToast(this, `Not quite — ${GOOD_INFO[good].fact}`, PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

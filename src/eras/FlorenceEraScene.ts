@@ -5,6 +5,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
@@ -25,6 +26,7 @@ export class FlorenceEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private locked = false;
   private dragging = false;
   private lineXWithinFrame = 0;
@@ -54,13 +56,14 @@ export class FlorenceEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Renaissance Florence: Find the Golden Ratio',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Drag the focal line to the golden ratio spot on all 3 canvases.');
 
     this.roundText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -89,6 +92,23 @@ export class FlorenceEraScene extends Phaser.Scene {
 
     this.startCanvas();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'Find the Golden Ratio',
+      line: 'Drag the red line to split the canvas using the golden ratio (a pleasing split where the big part compares to the whole the same way the small part compares to the big part) — about two-thirds of the way across — then tap Set Composition.',
+      quiz: {
+        question: 'Quick check: roughly where should the focal line sit for a pleasing golden-ratio split?',
+        options: [
+          { label: 'About 62% of the way across', correct: true },
+          { label: 'Exactly in the middle' },
+          { label: 'Right at the edge' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -165,6 +185,7 @@ export class FlorenceEraScene extends Phaser.Scene {
     const outcome = evaluatePlacement(challenge, this.lineXWithinFrame);
     if (outcome.success) {
       sfx.success();
+      this.hud.registerStreak(true);
       burstSuccess(this, this.frameX + this.lineXWithinFrame, FRAME_Y + FRAME_H / 2, 0xb5422e);
       this.index += 1;
       if (this.index >= CANVAS_COUNT) {
@@ -175,9 +196,15 @@ export class FlorenceEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, this.frameX + this.lineXWithinFrame, FRAME_Y + FRAME_H / 2);
       showToast(this, `Off by ${outcome.diffPx.toFixed(0)}px — try to feel the balance!`, PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

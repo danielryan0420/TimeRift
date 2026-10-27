@@ -3,7 +3,7 @@ import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import { GADGET_SKINS, recordBossVictory } from '../core/progression';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { createButton } from '../ui/GameButton';
-import { burstSuccess } from '../ui/particles';
+import { burstConfetti, burstSuccess } from '../ui/particles';
 import { starField } from '../ui/parallax';
 import { portalIn, portalOut } from '../ui/PortalTransition';
 import { sfx } from '../audio/SoundManager';
@@ -21,6 +21,7 @@ export class BossCompleteScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0d0620).setOrigin(0);
     starField(this, 140);
+    burstConfetti(this, GAME_WIDTH);
 
     this.add.text(GAME_WIDTH / 2, 90, 'The Timeline Is Mended!', {
       fontFamily: FONT_FAMILY,
@@ -31,7 +32,7 @@ export class BossCompleteScene extends Phaser.Scene {
     sfx.success();
     this.time.delayedCall(200, () => burstSuccess(this, GAME_WIDTH / 2, 90, 0x7c3aed));
 
-    this.add.text(GAME_WIDTH / 2, 160, 'You out-puzzled the Chronarch using everything you learned\nacross eight eras of history. TIME RIFT is sealed... for now.', {
+    this.add.text(GAME_WIDTH / 2, 160, 'You out-puzzled the Chronarch using everything you learned\nacross ten eras of history. TIME RIFT is sealed... for now.', {
       fontFamily: FONT_FAMILY,
       fontSize: '17px',
       color: PALETTE.textLight,

@@ -5,6 +5,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
@@ -27,6 +28,7 @@ export class RevolutionEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private dragging = false;
   private locked = false;
 
@@ -55,13 +57,14 @@ export class RevolutionEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'American Revolution: Crack the Culper Code',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Rotate the wheel to decode all 3 secret messages.');
 
     this.roundText = this.add.text(GAME_WIDTH / 2, 70, '', {
       fontFamily: FONT_FAMILY,
@@ -99,6 +102,23 @@ export class RevolutionEraScene extends Phaser.Scene {
 
     this.startCipher();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'Crack the Culper Code',
+      line: 'Drag the wheel to shift (slide) the letters until the green preview text makes sense, then tap Decode!',
+      quiz: {
+        question: 'Quick check: how do you know you picked the right shift?',
+        options: [
+          { label: 'The decoded preview text reads as real words', correct: true },
+          { label: 'The needle points straight up' },
+          { label: 'The shift number is 13' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -187,6 +207,7 @@ export class RevolutionEraScene extends Phaser.Scene {
     const challenge = this.ciphers[this.index];
     if (checkShift(challenge, this.shift)) {
       sfx.success();
+      this.hud.registerStreak(true);
       burstSuccess(this, DIAL_X, DIAL_Y, 0xb22234);
       this.index += 1;
       if (this.index >= CIPHER_COUNT) {
@@ -197,9 +218,15 @@ export class RevolutionEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, DIAL_X, DIAL_Y);
       showToast(this, 'That shift reads as gibberish — keep turning the wheel!', PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

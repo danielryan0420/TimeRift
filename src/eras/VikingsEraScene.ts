@@ -5,6 +5,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
@@ -27,6 +28,7 @@ export class VikingsEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private dragging = false;
   private locked = false;
 
@@ -54,13 +56,14 @@ export class VikingsEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Viking Seas: Steer by the Stars',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Use Polaris to steer the right heading on all 4 legs of the voyage.');
 
     this.legText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -88,6 +91,23 @@ export class VikingsEraScene extends Phaser.Scene {
 
     this.startLeg();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'Steer by the Stars',
+      line: 'Drag inside the dial to turn the bow until your heading (direction, in degrees) matches the clue about Polaris, the North Star, then tap Set Course!',
+      quiz: {
+        question: 'Quick check: if Polaris sits dead ahead over the bow, what heading should you set?',
+        options: [
+          { label: '0° (straight ahead)', correct: true },
+          { label: '180° (behind you)' },
+          { label: '90° (to the side)' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -188,6 +208,7 @@ export class VikingsEraScene extends Phaser.Scene {
     const outcome = evaluateLeg(leg, this.bearing);
     if (outcome.success) {
       sfx.success();
+      this.hud.registerStreak(true);
       burstSuccess(this, DIAL_X, DIAL_Y, 0x7ad1e0);
       this.legIndex += 1;
       if (this.legIndex >= LEG_COUNT) {
@@ -198,9 +219,15 @@ export class VikingsEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, DIAL_X, DIAL_Y);
       showToast(this, `Off course by ${outcome.diffDeg}°. Watch Polaris and try again!`, PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

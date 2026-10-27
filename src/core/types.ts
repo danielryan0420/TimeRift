@@ -42,6 +42,8 @@ export interface PlayerProfile {
   eraProgress: Record<EraId, EraProgress>;
   artifactsCollected: string[];
   bossDefeated: boolean;
+  /** Optional so profiles saved before the guided-tutorial feature existed default to "not done" (falsy). */
+  tutorialDone?: boolean;
 }
 
 export interface SaveData {

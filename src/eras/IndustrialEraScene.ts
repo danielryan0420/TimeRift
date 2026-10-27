@@ -13,6 +13,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
@@ -36,6 +37,7 @@ export class IndustrialEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private locked = false;
   private draggingSlider = false;
 
@@ -67,13 +69,14 @@ export class IndustrialEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Industrial Revolution: Set the Gear Ratio',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Set the gear ratio to hit the target RPM for all 3 factory orders.');
 
     this.orderText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -98,6 +101,23 @@ export class IndustrialEraScene extends Phaser.Scene {
 
     this.startOrder();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'Set the Gear Ratio',
+      line: 'Pick the drive gear teeth count and drag the driven gear slider until the output RPM (how fast the machine spins) matches the target, then tap Engage!',
+      quiz: {
+        question: 'Quick check: if you make the driven gear bigger (more teeth), what happens to the output speed?',
+        options: [
+          { label: 'It slows down', correct: true },
+          { label: 'It speeds up' },
+          { label: 'It stays exactly the same' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -242,6 +262,7 @@ export class IndustrialEraScene extends Phaser.Scene {
 
     if (outcome.success) {
       sfx.success();
+      this.hud.registerStreak(true);
       burstSuccess(this, GAME_WIDTH / 2, 160, 0xc77b2e);
       this.index += 1;
       if (this.index >= ORDER_COUNT) {
@@ -252,9 +273,15 @@ export class IndustrialEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, GAME_WIDTH / 2, 160);
       showToast(this, `${outcome.outputRpm.toFixed(0)} RPM is off by ${outcome.diffRpm.toFixed(0)} — adjust the gears!`, PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

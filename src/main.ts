@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
+import { StoryIntroScene } from './scenes/StoryIntroScene';
 import { ProfileSelectScene } from './scenes/ProfileSelectScene';
 import { HubScene } from './scenes/HubScene';
 import { MuseumScene } from './scenes/MuseumScene';
@@ -33,6 +34,7 @@ new Phaser.Game({
   },
   scene: [
     BootScene,
+    StoryIntroScene,
     ProfileSelectScene,
     HubScene,
     MuseumScene,

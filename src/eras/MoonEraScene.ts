@@ -14,6 +14,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
@@ -38,6 +39,7 @@ export class MoonEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private locked = false;
   private draggingSlider = false;
 
@@ -67,13 +69,14 @@ export class MoonEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Moon Landing: Balance the Launch',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Pick an engine and fuel load to complete all 3 launch missions.');
 
     this.missionText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -101,6 +104,23 @@ export class MoonEraScene extends Phaser.Scene {
 
     this.startMission();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'Balance the Launch',
+      line: 'Pick an engine and drag the fuel slider so your Thrust-to-weight ratio (whether your push is strong enough to beat gravity) is over 1 and your Delta-V (total speed change the rocket can produce) meets the mission need, then tap Launch!',
+      quiz: {
+        question: 'Quick check: what happens if you add too much fuel?',
+        options: [
+          { label: 'The rocket gets heavier and may not be able to lift off', correct: true },
+          { label: 'Nothing changes' },
+          { label: 'The engine gets stronger automatically' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -242,6 +262,7 @@ export class MoonEraScene extends Phaser.Scene {
 
     if (result.success) {
       sfx.success();
+      this.hud.registerStreak(true);
       burstSuccess(this, GAME_WIDTH / 2, GAME_HEIGHT - 120, 0xd8d8e8);
       this.missionIndex += 1;
       if (this.missionIndex >= MISSIONS.length) {
@@ -252,9 +273,15 @@ export class MoonEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, GAME_WIDTH / 2, GAME_HEIGHT - 120);
       showToast(this, result.reason, PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

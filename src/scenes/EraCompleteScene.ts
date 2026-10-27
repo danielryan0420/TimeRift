@@ -4,7 +4,7 @@ import type { EraAttemptResult, EraId } from '../core/types';
 import { ARTIFACTS, GADGET_SKINS, computeStars, recordEraCompletion } from '../core/progression';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { createButton } from '../ui/GameButton';
-import { burstSuccess } from '../ui/particles';
+import { burstConfetti, burstSuccess } from '../ui/particles';
 import { portalIn, portalOut } from '../ui/PortalTransition';
 import { sfx } from '../audio/SoundManager';
 
@@ -39,6 +39,7 @@ export class EraCompleteScene extends Phaser.Scene {
     );
 
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x120a24).setOrigin(0);
+    if (stars > 0) burstConfetti(this, GAME_WIDTH);
 
     this.add.text(GAME_WIDTH / 2, 60, 'Era Mended!', {
       fontFamily: FONT_FAMILY,

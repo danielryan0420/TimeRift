@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { ARTIFACTS } from '../core/progression';
+import { ARTIFACTS, artifactMeterText } from '../core/progression';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { createButton } from '../ui/GameButton';
 import { starField } from '../ui/parallax';
@@ -23,12 +23,31 @@ export class MuseumScene extends Phaser.Scene {
       color: PALETTE.gold,
     }).setOrigin(0.5);
 
+    const collected = profile.artifactsCollected.length;
+    const meterW = 360;
+    const meterX = GAME_WIDTH / 2 - meterW / 2;
+    const meterY = 78;
+    const meter = this.add.graphics();
+    meter.fillStyle(0x241a38, 1);
+    meter.fillRoundedRect(meterX, meterY, meterW, 16, 8);
+    const fillW = Math.max(16, (meterW * collected) / ARTIFACTS.length);
+    meter.fillStyle(0xffd34d, 1);
+    meter.fillRoundedRect(meterX, meterY, fillW, 16, 8);
+    meter.lineStyle(2, 0x4a3f66, 1);
+    meter.strokeRoundedRect(meterX, meterY, meterW, 16, 8);
+
+    this.add.text(GAME_WIDTH / 2, meterY + 30, artifactMeterText(collected, ARTIFACTS.length), {
+      fontFamily: FONT_FAMILY,
+      fontSize: '14px',
+      color: PALETTE.textLight,
+    }).setOrigin(0.5, 0);
+
     const cols = ARTIFACTS.length > 8 ? 5 : 4;
     const cardW = cols > 4 ? 150 : 180;
     const cellW = GAME_WIDTH / cols;
     const cellH = 180;
     const startX = cellW / 2;
-    const startY = 150;
+    const startY = 190;
 
     ARTIFACTS.forEach((artifact, i) => {
       const col = i % cols;

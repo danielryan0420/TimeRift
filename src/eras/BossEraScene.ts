@@ -21,6 +21,7 @@ import { deltaV, evaluateLaunch, thrustToWeightRatio } from '../core/puzzles/moo
 import { evaluateFlight, generateAttempts, liftForceN, MAX_SLIDER_SPEED_MS, type FlightAttempt } from '../core/puzzles/flight';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
@@ -60,6 +61,7 @@ export class BossEraScene extends Phaser.Scene {
   private dragMode: 'vikings' | 'castle' | 'florence' | 'revolution' | 'industrial' | 'moon' | 'flight' | null = null;
 
   private puzzleLayer!: Phaser.GameObjects.Container;
+  private hud!: EraHUD;
   private villain!: Phaser.GameObjects.Container;
   private villainEyes!: Phaser.GameObjects.Arc[];
   private bossHpBar!: Phaser.GameObjects.Graphics;
@@ -123,13 +125,14 @@ export class BossEraScene extends Phaser.Scene {
     this.drawBackground();
     this.drawVillain();
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Final Showdown: The Chronarch',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Beat the Chronarch in 10 rounds by solving one skill from each era.');
 
     this.bossHpBar = this.add.graphics();
     this.heartsText = this.add.text(GAME_WIDTH / 2, 100, '', {
@@ -153,6 +156,16 @@ export class BossEraScene extends Phaser.Scene {
     this.updateHpDisplays();
     this.startCurrentRound();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'The Final Showdown',
+      line: 'Each round reuses a skill you already learned from an earlier era — tools, numerals, trade goods, navigation, and more. Solve the round to chip the Chronarch\'s health; a wrong answer costs you one of your hearts.',
+      dismissLabel: 'Got it!',
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -277,6 +290,7 @@ export class BossEraScene extends Phaser.Scene {
 
   private resolveRound(success: boolean): void {
     if (this.fightOver) return;
+    this.hud.registerStreak(success);
     if (success) {
       sfx.success();
       burstSuccess(this, VILLAIN_X, VILLAIN_Y, 0xff3b6b);

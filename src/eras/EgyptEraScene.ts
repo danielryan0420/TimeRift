@@ -3,8 +3,10 @@ import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import { generateBlocks, checkAnswer, TOOL_INFO, TOOLS, type Tool, type BlockChallenge, type BlockSituation } from '../core/puzzles/egypt';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
+import { EGYPT_TUTORIAL_STEPS, isTutorialPending } from '../core/onboarding';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
@@ -37,6 +39,7 @@ export class EgyptEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private situationText!: Phaser.GameObjects.Text;
   private progressBlocks: Phaser.GameObjects.Rectangle[] = [];
   private locked = false;
@@ -59,13 +62,14 @@ export class EgyptEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Ancient Egypt: Raise the Pyramid',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Move all 6 blocks by picking the right tool for each one.');
 
     this.add.text(GAME_WIDTH / 2, 100, 'Pick the right tool to move each block!', {
       fontFamily: FONT_FAMILY,
@@ -90,6 +94,46 @@ export class EgyptEraScene extends Phaser.Scene {
     this.showCurrentBlock();
 
     portalIn(this);
+    this.showIntroCards(profile.tutorialDone);
+  }
+
+  private showIntroCards(tutorialDone: boolean | undefined): void {
+    if (isTutorialPending(tutorialDone)) {
+      this.showTutorialStep(0);
+      return;
+    }
+    showHowToPlayCard(this, {
+      title: 'Raise the Pyramid',
+      line: 'Pick the right tool to move each block! Read the situation, then tap a tool below.',
+      quiz: {
+        question: 'Quick check: which tool is best for prying a block in a tight gap?',
+        options: [
+          { label: 'Lever', correct: true },
+          { label: 'Wet Sand' },
+          { label: 'Ramp' },
+        ],
+      },
+      onDismiss: () => {},
+    });
+  }
+
+  private showTutorialStep(step: number): void {
+    const data = EGYPT_TUTORIAL_STEPS[step];
+    const isLast = step === EGYPT_TUTORIAL_STEPS.length - 1;
+    showHowToPlayCard(this, {
+      emoji: '🧭',
+      title: data.title,
+      line: data.line,
+      dismissLabel: isLast ? "Let's dig in!" : 'Next',
+      onDismiss: () => {
+        if (isLast) {
+          const state = this.registry.get(GAME_STATE_KEY) as GameState;
+          state.updateActiveProfile((p) => ({ ...p, tutorialDone: true }));
+        } else {
+          this.showTutorialStep(step + 1);
+        }
+      },
+    });
   }
 
   private drawBackground(): void {
@@ -183,6 +227,7 @@ export class EgyptEraScene extends Phaser.Scene {
 
     if (correct) {
       sfx.success();
+      this.hud.registerStreak(true);
       this.progressBlocks[this.index].setFillStyle(0xffd34d);
       burstSuccess(this, this.progressBlocks[this.index].x, this.progressBlocks[this.index].y);
       this.index += 1;
@@ -194,9 +239,15 @@ export class EgyptEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, GAME_WIDTH / 2, GAME_HEIGHT - 90);
       showToast(this, `Not quite — ${TOOL_INFO[tool].fact}`, PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

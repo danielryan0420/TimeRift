@@ -29,6 +29,29 @@ export function burstSuccess(scene: Phaser.Scene, x: number, y: number, tint = 0
   scene.time.delayedCall(800, () => emitter.destroy());
 }
 
+const CONFETTI_TINTS = [0xffd34d, 0x5ee37a, 0x22d3ee, 0xff6b6b, 0x7c3aed];
+
+/** A big celebratory burst across the top of the screen for era/boss completion. */
+export function burstConfetti(scene: Phaser.Scene, width: number): void {
+  const texture = ensureParticleTexture(scene);
+  for (const tint of CONFETTI_TINTS) {
+    const emitter = scene.add.particles(0, 0, texture, {
+      x: { min: 0, max: width },
+      y: -10,
+      speedY: { min: 120, max: 260 },
+      speedX: { min: -60, max: 60 },
+      scale: { start: 0.9, end: 0.2 },
+      lifespan: 1600,
+      quantity: 10,
+      tint,
+      rotate: { min: 0, max: 360 },
+      gravityY: 220,
+    });
+    emitter.explode(10);
+    scene.time.delayedCall(1800, () => emitter.destroy());
+  }
+}
+
 export function burstError(scene: Phaser.Scene, x: number, y: number): void {
   const texture = ensureParticleTexture(scene);
   const emitter = scene.add.particles(x, y, texture, {

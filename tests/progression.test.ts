@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  artifactMeterText,
   computeStars,
   createDefaultProfile,
   isBossUnlocked,
@@ -9,6 +10,16 @@ import {
   totalStars,
 } from '../src/core/progression';
 import { ERA_ORDER } from '../src/core/types';
+
+describe('artifact meter', () => {
+  it('encourages collecting more while incomplete', () => {
+    expect(artifactMeterText(3, 10)).toBe('🏺 3 / 10 artifacts collected — mend more eras to find the rest!');
+  });
+
+  it('celebrates a complete collection', () => {
+    expect(artifactMeterText(10, 10)).toBe('🏺 10 / 10 artifacts — the collection is complete!');
+  });
+});
 
 describe('computeStars', () => {
   const opts = { mistakeLimit: 1, timeTargetSeconds: 60 };

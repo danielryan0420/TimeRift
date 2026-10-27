@@ -5,6 +5,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
@@ -28,6 +29,7 @@ export class RomeEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private locked = false;
 
   private tileButtons: Phaser.GameObjects.Container[] = [];
@@ -52,13 +54,14 @@ export class RomeEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Ancient Rome: Crack the Numeral Lock',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Build the Roman numeral tiles to open all 3 locks.');
 
     this.roundText = this.add.text(GAME_WIDTH / 2, 90, '', {
       fontFamily: FONT_FAMILY,
@@ -92,6 +95,23 @@ export class RomeEraScene extends Phaser.Scene {
 
     this.startRound();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'Crack the Numeral Lock',
+      line: 'Tap the symbol tiles in order to build the Roman numeral for the target number, then tap Open Lock.',
+      quiz: {
+        question: 'Quick check: which Roman numeral stands for the number 9?',
+        options: [
+          { label: 'IX', correct: true },
+          { label: 'VI' },
+          { label: 'XI' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -184,6 +204,7 @@ export class RomeEraScene extends Phaser.Scene {
     const attemptStr = this.attempt.join('');
     if (checkLock(this.puzzle.target, attemptStr)) {
       sfx.success();
+      this.hud.registerStreak(true);
       burstSuccess(this, GAME_WIDTH / 2, 220, 0xd94f3d);
       this.round += 1;
       if (this.round >= ROUNDS.length) {
@@ -194,10 +215,16 @@ export class RomeEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, GAME_WIDTH / 2, 220);
       showToast(this, `That opens ${attemptStr.length ? 'a different' : 'no'} vault. Try again!`, PALETTE.danger);
       this.clearAttempt();
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 

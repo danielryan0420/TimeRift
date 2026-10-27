@@ -51,6 +51,12 @@ export function totalStars(profile: PlayerProfile): number {
   return ERA_ORDER.reduce((sum, era) => sum + profile.eraProgress[era].stars, 0);
 }
 
+/** A short, always-encouraging line for the museum's artifact meter. */
+export function artifactMeterText(collected: number, total: number): string {
+  if (collected >= total) return `🏺 ${collected} / ${total} artifacts — the collection is complete!`;
+  return `🏺 ${collected} / ${total} artifacts collected — mend more eras to find the rest!`;
+}
+
 export function availableSkins(profile: PlayerProfile): GadgetSkin[] {
   const stars = totalStars(profile);
   return GADGET_SKINS.filter((skin) => skin.requiredStars <= stars);
@@ -78,6 +84,7 @@ export function createDefaultProfile(id: string, name: string): PlayerProfile {
     eraProgress,
     artifactsCollected: [],
     bossDefeated: false,
+    tutorialDone: false,
   };
 }
 

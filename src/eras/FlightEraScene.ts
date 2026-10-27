@@ -11,6 +11,7 @@ import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
+import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
@@ -33,6 +34,7 @@ export class FlightEraScene extends Phaser.Scene {
   private hintsUsedTotal = 0;
   private startTime = 0;
   private hints!: HintTracker;
+  private hud!: EraHUD;
   private locked = false;
   private draggingSlider = false;
 
@@ -61,13 +63,14 @@ export class FlightEraScene extends Phaser.Scene {
     this.locked = false;
     this.startTime = this.time.now;
 
-    new EraHUD(this, {
+    this.hud = new EraHUD(this, {
       title: 'Age of Flight: Get the Flyer Airborne',
       muted: profile.muted,
       onBack: () => portalOut(this, () => this.scene.start('Hub')),
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
+    this.hud.setGoal('Set an airspeed that gives enough lift without breaking the frame, 3 times.');
 
     this.attemptText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -90,6 +93,23 @@ export class FlightEraScene extends Phaser.Scene {
 
     this.startAttempt();
     portalIn(this);
+    this.showIntroCards();
+  }
+
+  private showIntroCards(): void {
+    showHowToPlayCard(this, {
+      title: 'Get the Flyer Airborne',
+      line: 'Drag the airspeed slider until you get enough lift (the upward push that beats gravity) to leave the ground, but not so fast that the frame breaks — then tap Take Off!',
+      quiz: {
+        question: 'Quick check: what happens to lift as airspeed increases?',
+        options: [
+          { label: 'Lift grows a lot — it depends on speed squared', correct: true },
+          { label: 'Lift stays exactly the same' },
+          { label: 'Lift shrinks' },
+        ],
+      },
+      onDismiss: () => {},
+    });
   }
 
   private drawBackground(): void {
@@ -217,6 +237,7 @@ export class FlightEraScene extends Phaser.Scene {
 
     if (outcome.success) {
       sfx.success();
+      this.hud.registerStreak(true);
       burstSuccess(this, this.flyer.x, this.flyer.y, 0x3b5f8a);
       this.index += 1;
       if (this.index >= ATTEMPT_COUNT) {
@@ -227,10 +248,16 @@ export class FlightEraScene extends Phaser.Scene {
       }
     } else {
       sfx.error();
+      this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, this.flyer.x, this.flyer.y);
       const reason = outcome.tooSlow ? "Not enough lift — the Flyer won't leave the ground." : 'Too fast — the wood-and-fabric frame is shaking apart!';
       showToast(this, reason, PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.hintsUsedTotal += 1;
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 
