@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FONT_FAMILY, PALETTE } from './theme';
 import { sfx } from '../audio/SoundManager';
+import { attachPressFeedback } from './buttonPress';
 
 export interface ButtonOptions {
   width?: number;
@@ -25,7 +26,6 @@ export function createButton(
   const fillColor = opts.fillColor ?? PALETTE.portalCore;
   const hoverColor = opts.hoverColor ?? PALETTE.portalEdge;
 
-  const container = scene.add.container(x, y);
   const bg = scene.add.graphics();
   const drawBg = (color: number) => {
     bg.clear();
@@ -42,18 +42,33 @@ export function createButton(
     color: opts.textColor ?? PALETTE.textLight,
   }).setOrigin(0.5);
 
-  container.add([bg, text]);
+  // Press-scale feedback is applied to this inner `visual` container, never to the outer
+  // `container` that holds the hit area. Phaser re-hit-tests the interactive object against
+  // its *current* transform on pointerup, so scaling the interactive object itself on
+  // pointerdown would shrink the hit area a finger has to land back inside of to register the
+  // tap — on a touch screen that few-pixel-smaller target reliably ate taps near the edge.
+  const visual = scene.add.container(0, 0, [bg, text]);
+
+  const container = scene.add.container(x, y, [visual]);
   container.setSize(width, height);
   container.setInteractive({ useHandCursor: true });
 
   container.on('pointerover', () => drawBg(hoverColor));
   container.on('pointerout', () => drawBg(fillColor));
-  container.on('pointerdown', () => container.setScale(0.95));
-  container.on('pointerup', () => {
-    container.setScale(1);
+
+  attachPressFeedback(container, visual, () => {
     sfx.click();
     onClick();
   });
 
+  // Callers that need to update the label after creation (see StoryIntroScene) should use
+  // this instead of reaching into the container's children by index — that structure is an
+  // implementation detail and has already changed once (see buttonPress.ts).
+  container.setData('labelText', text);
+
   return container;
+}
+
+export function getButtonLabel(button: Phaser.GameObjects.Container): Phaser.GameObjects.Text {
+  return button.getData('labelText') as Phaser.GameObjects.Text;
 }

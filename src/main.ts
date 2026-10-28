@@ -19,7 +19,7 @@ import { MoonEraScene } from './eras/MoonEraScene';
 import { BossEraScene } from './eras/BossEraScene';
 import { GAME_HEIGHT, GAME_WIDTH } from './ui/theme';
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
   width: GAME_WIDTH,
@@ -53,6 +53,11 @@ new Phaser.Game({
     BossEraScene,
   ],
 });
+
+// Exposed only so Playwright (see scripts/touch-tap-check.mjs) can read the active scene key
+// from outside the canvas; the game draws to <canvas> so there's nothing else in the DOM to
+// assert against.
+(window as unknown as { __timeriftGame: Phaser.Game }).__timeriftGame = game;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

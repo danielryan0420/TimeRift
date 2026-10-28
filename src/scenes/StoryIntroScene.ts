@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { markIntroSeen } from '../core/intro';
-import { createButton } from '../ui/GameButton';
+import { createButton, getButtonLabel } from '../ui/GameButton';
 import { starField } from '../ui/parallax';
 import { portalIn, portalOut } from '../ui/PortalTransition';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, fitWidth } from '../ui/theme';
@@ -93,8 +93,7 @@ export class StoryIntroScene extends Phaser.Scene {
     this.lineText.setText(slide.line);
     this.dots.forEach((dot, i) => dot.setFillStyle(i === this.index ? 0xffd34d : 0x4a3f66));
 
-    const label = this.nextButton.getAt(1) as Phaser.GameObjects.Text;
-    label.setText(this.index === SLIDES.length - 1 ? "Let's Go!" : 'Next');
+    getButtonLabel(this.nextButton).setText(this.index === SLIDES.length - 1 ? "Let's Go!" : 'Next');
 
     [this.emojiText, this.titleText, this.lineText].forEach((t) => {
       t.setAlpha(0);
