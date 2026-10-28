@@ -3,10 +3,22 @@ import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import {
   applyRoundOutcome,
   BOSS_MAX_HP,
+  BOSS_ROUND_GOAL,
+  BOSS_ROUND_HOWTO,
+  castleBossHints,
+  chinaBossHints,
   currentRoundEra,
+  egyptBossHints,
+  flightBossHints,
+  florenceBossHints,
+  industrialBossHints,
   initBossFight,
   isBossDefeated,
   isPlayerDefeated,
+  moonBossHints,
+  revolutionBossHints,
+  romeBossHints,
+  vikingsBossHints,
   type BossState,
 } from '../core/puzzles/boss';
 import { checkAnswer, generateBlocks, TOOL_INFO, TOOLS, type BlockChallenge } from '../core/puzzles/egypt';
@@ -19,6 +31,7 @@ import { caesarDecode, checkShift, generateCiphers, type CipherChallenge } from 
 import { evaluateOrder, generateSolvableOrder, outputRpm, type FactoryOrder } from '../core/puzzles/industrial';
 import { deltaV, evaluateLaunch, thrustToWeightRatio } from '../core/puzzles/moon';
 import { evaluateFlight, generateAttempts, liftForceN, MAX_SLIDER_SPEED_MS, type FlightAttempt } from '../core/puzzles/flight';
+import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
@@ -67,6 +80,8 @@ export class BossEraScene extends Phaser.Scene {
   private bossHpBar!: Phaser.GameObjects.Graphics;
   private heartsText!: Phaser.GameObjects.Text;
   private roundText!: Phaser.GameObjects.Text;
+  private howToText!: Phaser.GameObjects.Text;
+  private hints!: HintTracker;
   private submitBtn?: Phaser.GameObjects.Container;
 
   // Per-round working state.
@@ -132,7 +147,6 @@ export class BossEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Beat the Chronarch in 10 rounds by solving one skill from each era.');
 
     this.bossHpBar = this.add.graphics();
     this.heartsText = this.add.text(GAME_WIDTH / 2, 100, '', {
@@ -140,12 +154,20 @@ export class BossEraScene extends Phaser.Scene {
       fontSize: '20px',
     }).setOrigin(0.5);
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 230, '', {
+    this.roundText = this.add.text(GAME_WIDTH / 2, 222, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
       align: 'center',
       wordWrap: { width: 760 },
+    }).setOrigin(0.5);
+
+    this.howToText = this.add.text(GAME_WIDTH / 2, 256, '', {
+      fontFamily: FONT_FAMILY,
+      fontSize: '13px',
+      color: PALETTE.textMuted,
+      align: 'center',
+      wordWrap: { width: 700 },
     }).setOrigin(0.5);
 
     this.puzzleLayer = this.add.container(0, 0);
@@ -231,6 +253,8 @@ export class BossEraScene extends Phaser.Scene {
     if (!era) return;
     const seed = Math.floor(Math.random() * 1e9);
     this.roundText.setText(`Trial ${this.bossState.roundIndex + 1} of ${BOSS_MAX_HP}: ${ERA_LABEL[era]}`);
+    this.howToText.setText(BOSS_ROUND_HOWTO[era]);
+    this.hud.setGoal(BOSS_ROUND_GOAL[era]);
 
     switch (era) {
       case 'egypt': return this.startEgyptRound(seed);
@@ -247,20 +271,13 @@ export class BossEraScene extends Phaser.Scene {
   }
 
   private showHint(): void {
-    const era = currentRoundEra(this.bossState);
-    const hints: Record<string, string> = {
-      egypt: 'Match the tool to the situation, just like raising the pyramid.',
-      rome: 'Build the Roman numeral tile by tile, then open the lock.',
-      china: 'Match the trade good to what the merchant is asking for.',
-      vikings: 'Drag inside the dial to aim toward the clue bearing.',
-      castle: 'A bigger counterweight sends the shot farther.',
-      florence: 'The golden ratio splits the frame unevenly — favor one side.',
-      revolution: 'Watch the green decoded preview as you turn the wheel.',
-      industrial: 'Output RPM = input RPM × drive teeth ÷ driven teeth.',
-      flight: 'Lift grows with speed squared, but too much speed breaks the frame.',
-      moon: 'More fuel adds delta-v but also weight — balance thrust against mass.',
-    };
-    showToast(this, `💡 ${hints[era ?? ''] ?? 'Trust your training!'}`, PALETTE.gold);
+    if (this.fightOver) return;
+    const hint = this.hints.next();
+    if (!hint) {
+      showToast(this, 'No more hints for this trial!');
+      return;
+    }
+    showToast(this, `💡 ${hint.text}`, PALETTE.gold);
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
@@ -316,12 +333,17 @@ export class BossEraScene extends Phaser.Scene {
       this.time.delayedCall(500, () => this.startCurrentRound());
     } else {
       showToast(this, 'The Chronarch resists — try again!', PALETTE.danger);
+      const autoHint = this.hints.registerMistake();
+      if (autoHint) {
+        this.time.delayedCall(2300, () => showToast(this, `💡 ${autoHint.text}`, PALETTE.gold));
+      }
     }
   }
 
   // --- Egypt round: tap the right tool. ---
   private startEgyptRound(seed: number): void {
     this.egyptBlock = generateBlocks(1, seed)[0];
+    this.hints = new HintTracker(egyptBossHints(this.egyptBlock));
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, 'Choose the right tool to break the Chronarch\'s stone shield!', {
       fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
     }).setOrigin(0.5);
@@ -339,6 +361,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- Rome round: build the numeral, then submit. ---
   private startRomeRound(seed: number): void {
     this.romePuzzle = generateLockPuzzle(seed, 1, 40);
+    this.hints = new HintTracker(romeBossHints(this.romePuzzle.target));
     this.romeAttempt = [];
     const target = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, `Build the Roman numeral lock for ${this.romePuzzle.target} to pierce the shield.`, {
       fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
@@ -376,6 +399,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- China round: tap the right trade good. ---
   private startChinaRound(seed: number): void {
     this.chinaStop = generateStops(1, seed)[0];
+    this.hints = new HintTracker(chinaBossHints(this.chinaStop));
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, "Give the Chronarch's caravan the good it truly demands!", {
       fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
     }).setOrigin(0.5);
@@ -393,6 +417,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- Vikings round: drag the dial to the bearing. ---
   private startVikingsRound(seed: number): void {
     this.vikingsLeg = generateVoyage(1, seed)[0];
+    this.hints = new HintTracker(vikingsBossHints(this.vikingsLeg));
     this.vikingsBearing = 0;
     const clue = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 10, this.vikingsLeg.clue, {
       fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
@@ -434,6 +459,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- Castle round: one slider (counterweight, angle fixed at BOSS_CASTLE_ANGLE_DEG). ---
   private startCastleRound(seed: number): void {
     this.castleTarget = generateTargets(1, seed)[0];
+    this.hints = new HintTracker(castleBossHints(this.castleTarget));
     this.castleCwKg = 1500;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 20, `Hit ${this.castleTarget.wallLabel}, ${this.castleTarget.targetDistanceM} m away.`, {
       fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight,
@@ -475,6 +501,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- Florence round: drag the focal line to the golden ratio point. ---
   private startFlorenceRound(seed: number): void {
     this.florenceCanvas = generateCanvases(1, seed)[0];
+    this.hints = new HintTracker(florenceBossHints(this.florenceCanvas));
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Place the focal line for ${this.florenceCanvas.subject} using the golden ratio.`, {
       fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
     }).setOrigin(0.5);
@@ -520,6 +547,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- Revolution round: rotate the cipher wheel. ---
   private startRevolutionRound(seed: number): void {
     this.revolutionCipher = generateCiphers(1, seed)[0];
+    this.hints = new HintTracker(revolutionBossHints(this.revolutionCipher));
     this.revolutionShift = 0;
     const cipherText = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, this.revolutionCipher.ciphertext, {
       fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.danger, align: 'center', wordWrap: { width: 650 },
@@ -565,6 +593,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- Industrial round: slider for driven gear teeth (drive fixed at 20). ---
   private startIndustrialRound(seed: number): void {
     this.industrialOrder = generateSolvableOrder(seed, 20);
+    this.hints = new HintTracker(industrialBossHints(this.industrialOrder, 20));
     this.industrialDrivenTeeth = 40;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Drive ${this.industrialOrder.machine} at ${this.industrialOrder.targetRpm} RPM (input: ${this.industrialOrder.inputRpm} RPM, drive gear: 20 teeth).`, {
       fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },
@@ -606,6 +635,7 @@ export class BossEraScene extends Phaser.Scene {
 
   // --- Moon round: fuel slider (engine fixed). ---
   private startMoonRound(): void {
+    this.hints = new HintTracker(moonBossHints(MOON_MISSION));
     this.moonFuelKg = 8000;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Reach the escape velocity delta-v of ${MOON_MISSION.requiredDeltaVMs} m/s without overloading the launch frame.`, {
       fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },
@@ -650,6 +680,7 @@ export class BossEraScene extends Phaser.Scene {
   // --- Flight round: airspeed slider (wing fixed). ---
   private startFlightRound(seed: number): void {
     this.flightAttempt = generateAttempts(1, seed)[0];
+    this.hints = new HintTracker(flightBossHints(this.flightAttempt));
     this.flightSpeedMs = 0;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Get the Flyer airborne in ${this.flightAttempt.windLabel} without breaking the frame.`, {
       fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },
