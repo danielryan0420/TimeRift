@@ -3,7 +3,7 @@ import { markIntroSeen } from '../core/intro';
 import { createButton } from '../ui/GameButton';
 import { starField } from '../ui/parallax';
 import { portalIn, portalOut } from '../ui/PortalTransition';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, fitWidth } from '../ui/theme';
 
 interface StorySlide {
   emoji: string;
@@ -59,19 +59,20 @@ export class StoryIntroScene extends Phaser.Scene {
       hoverColor: 0x3a3160,
     });
 
-    this.emojiText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150, '', { fontSize: '90px' }).setOrigin(0.5);
+    this.emojiText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150, '', { fontSize: IS_PORTRAIT ? '70px' : '90px' }).setOrigin(0.5);
     this.titleText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '34px',
+      fontSize: IS_PORTRAIT ? '26px' : '34px',
       color: PALETTE.gold,
       align: 'center',
+      wordWrap: { width: fitWidth(640) },
     }).setOrigin(0.5);
     this.lineText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 640 },
+      wordWrap: { width: fitWidth(640) },
     }).setOrigin(0.5);
 
     const dotsY = GAME_HEIGHT / 2 + 110;

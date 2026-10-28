@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FONT_FAMILY, GAME_WIDTH, PALETTE } from './theme';
+import { FONT_FAMILY, GAME_WIDTH, IS_PORTRAIT, PALETTE } from './theme';
 import { sfx } from '../audio/SoundManager';
 import { createButton } from './GameButton';
 import { comboMessage, goalBannerText } from '../core/onboarding';
@@ -11,6 +11,9 @@ export interface HUDOptions {
   onHint: () => void;
   onToggleMute: (muted: boolean) => void;
 }
+
+/** Height of the top HUD bar; portrait needs a second row since the title no longer fits beside the buttons. */
+export const HUD_BAR_HEIGHT = IS_PORTRAIT ? 104 : 56;
 
 export class EraHUD {
   readonly hintButton: Phaser.GameObjects.Container;
@@ -27,38 +30,42 @@ export class EraHUD {
     this.muted = opts.muted;
     const bar = scene.add.graphics().setDepth(900);
     bar.fillStyle(PALETTE.panelBg, 0.55);
-    bar.fillRect(0, 0, GAME_WIDTH, 56);
+    bar.fillRect(0, 0, GAME_WIDTH, HUD_BAR_HEIGHT);
 
-    scene.add.text(16, 16, opts.title, {
+    scene.add.text(16, 12, opts.title, {
       fontFamily: FONT_FAMILY,
-      fontSize: '22px',
+      fontSize: IS_PORTRAIT ? '16px' : '22px',
       color: PALETTE.textLight,
+      wordWrap: { width: GAME_WIDTH - 32 },
     }).setDepth(901);
 
-    this.goalText = scene.add.text(16, 62, '', {
+    this.goalText = scene.add.text(16, HUD_BAR_HEIGHT + 6, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '14px',
+      fontSize: '16px',
       color: PALETTE.gold,
       wordWrap: { width: GAME_WIDTH - 32 },
     }).setDepth(901);
 
-    this.streakText = scene.add.text(GAME_WIDTH / 2, 90, '', {
+    this.streakText = scene.add.text(GAME_WIDTH / 2, HUD_BAR_HEIGHT + 60, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.gold,
     }).setOrigin(0.5, 0).setDepth(901).setScale(0);
 
-    this.timerText = scene.add.text(GAME_WIDTH / 2, 18, '0:00', {
+    const controlsY = IS_PORTRAIT ? 72 : 18;
+    this.timerText = scene.add.text(GAME_WIDTH / 2, IS_PORTRAIT ? 48 : 18, '0:00', {
       fontFamily: FONT_FAMILY,
       fontSize: '20px',
       color: PALETTE.textLight,
     }).setOrigin(0.5, 0).setDepth(901);
 
-    createButton(scene, GAME_WIDTH - 220, 28, '< Back', opts.onBack, { width: 100, height: 40, fontSize: 16 }).setDepth(901);
+    const backX = IS_PORTRAIT ? GAME_WIDTH * 0.24 : GAME_WIDTH - 220;
+    const hintX = IS_PORTRAIT ? GAME_WIDTH * 0.76 : GAME_WIDTH - 110;
+    createButton(scene, backX, controlsY + 22, '< Back', opts.onBack, { width: 100, height: 40, fontSize: 16 }).setDepth(901);
 
-    this.hintButton = createButton(scene, GAME_WIDTH - 110, 28, 'Hint 💡', opts.onHint, { width: 100, height: 40, fontSize: 16 }).setDepth(901);
+    this.hintButton = createButton(scene, hintX, controlsY + 22, 'Hint 💡', opts.onHint, { width: 100, height: 40, fontSize: 16 }).setDepth(901);
 
-    this.muteLabel = scene.add.text(GAME_WIDTH - 260, 18, this.muted ? '🔇' : '🔊', {
+    this.muteLabel = scene.add.text(IS_PORTRAIT ? GAME_WIDTH - 32 : GAME_WIDTH - 260, IS_PORTRAIT ? 10 : 18, this.muted ? '🔇' : '🔊', {
       fontFamily: FONT_FAMILY,
       fontSize: '22px',
     }).setDepth(901).setInteractive({ useHandCursor: true });

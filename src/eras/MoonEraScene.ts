@@ -19,7 +19,7 @@ import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { drawThresholdTick } from '../ui/zoneMeter';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, TOP_SHIFT, PALETTE, fitWidth } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -30,16 +30,16 @@ const EXHAUST_VELOCITY = EXHAUST_VELOCITY_MS;
 const MAX_FUEL = MAX_FUEL_KG;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 120 };
 
-const SLIDER_X = GAME_WIDTH / 2 - 220;
-const SLIDER_Y = 420;
-const SLIDER_W = 440;
+const SLIDER_W = IS_PORTRAIT ? GAME_WIDTH - 80 : 440;
+const SLIDER_X = GAME_WIDTH / 2 - SLIDER_W / 2;
+const SLIDER_Y = 420 + TOP_SHIFT;
 
-const ROCKET_X = 150;
-const ROCKET_BASE_Y = 460;
-const BAR_X = GAME_WIDTH / 2 - 160;
-const BAR_W = 320;
-const PUSH_BAR_Y = 470;
-const FUEL_BAR_Y = 505;
+const ROCKET_X = IS_PORTRAIT ? GAME_WIDTH / 2 : 150;
+const ROCKET_BASE_Y = IS_PORTRAIT ? SLIDER_Y + 150 : 460;
+const BAR_W = IS_PORTRAIT ? GAME_WIDTH - 140 : 320;
+const BAR_X = GAME_WIDTH / 2 - BAR_W / 2 + (IS_PORTRAIT ? 20 : 0);
+const PUSH_BAR_Y = IS_PORTRAIT ? ROCKET_BASE_Y + 90 : 470;
+const FUEL_BAR_Y = IS_PORTRAIT ? PUSH_BAR_Y + 40 : 505;
 const MAX_TWR_SCALE = 3;
 const MAX_DV_SCALE = 6000;
 const COLOR_SUCCESS = 0x5ee37a;
@@ -95,12 +95,12 @@ export class MoonEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Pick an engine and fuel load to light up both gauges green, 3 times. 🔬 More fuel adds push time, but it also adds weight to lift.');
 
-    this.missionText = this.add.text(GAME_WIDTH / 2, 76, '', {
+    this.missionText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 640 },
+      wordWrap: { width: fitWidth(640) },
     }).setOrigin(0.5);
 
     this.drawRocket();
@@ -108,7 +108,8 @@ export class MoonEraScene extends Phaser.Scene {
     this.drawFuelSlider();
     this.drawGauges();
 
-    this.statusText = this.add.text(GAME_WIDTH / 2, 522, '', {
+    const statusY = IS_PORTRAIT ? FUEL_BAR_Y + 35 : 522;
+    this.statusText = this.add.text(GAME_WIDTH / 2, statusY, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '17px',
       color: PALETTE.textLight,
@@ -179,31 +180,35 @@ export class MoonEraScene extends Phaser.Scene {
   private drawEngineButtons(): void {
     this.engineButtons.forEach((b) => b.destroy());
     this.engineButtons = [];
-    const spacing = 160;
-    const startX = GAME_WIDTH / 2 - spacing;
+    const n = ENGINES.length;
+    const width = IS_PORTRAIT ? Math.min(150, (GAME_WIDTH - 32 - 10 * (n - 1)) / n) : 150;
+    const spacing = width + 10;
+    const startX = GAME_WIDTH / 2 - (spacing * (n - 1)) / 2;
     ENGINES.forEach((engine, i) => {
       const selected = i === this.engineIndex;
       const btn = createButton(
         this,
         startX + i * spacing,
-        140,
+        140 + TOP_SHIFT,
         `${engine.label} Engine`,
         () => {
           this.engineIndex = i;
           this.drawEngineButtons();
           this.updateReadouts();
         },
-        { width: 150, height: 48, fontSize: 15, fillColor: selected ? PALETTE.portalEdge : PALETTE.portalCore },
+        { width, height: 48, fontSize: IS_PORTRAIT ? 13 : 15, fillColor: selected ? PALETTE.portalEdge : PALETTE.portalCore },
       );
       this.engineButtons.push(btn);
     });
   }
 
   private drawFuelSlider(): void {
-    this.add.text(GAME_WIDTH / 2, 190, 'Choose an engine, then set the fuel load:', {
+    this.add.text(GAME_WIDTH / 2, 190 + TOP_SHIFT, 'Choose an engine, then set the fuel load:', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
+      align: 'center',
+      wordWrap: { width: fitWidth(640) },
     }).setOrigin(0.5);
 
     const track = this.add.rectangle(SLIDER_X + SLIDER_W / 2, SLIDER_Y, SLIDER_W, 10, 0x4a3f66).setStrokeStyle(2, 0xffffff, 0.3);
@@ -211,7 +216,7 @@ export class MoonEraScene extends Phaser.Scene {
 
     this.sliderHandle = this.add.circle(SLIDER_X, SLIDER_Y, 18, 0xffd34d).setStrokeStyle(3, 0xffffff, 0.6).setInteractive({ useHandCursor: true, draggable: true });
 
-    this.fuelText = this.add.text(GAME_WIDTH / 2, 365, '', {
+    this.fuelText = this.add.text(GAME_WIDTH / 2, 365 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.gold,

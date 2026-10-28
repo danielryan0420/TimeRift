@@ -15,7 +15,7 @@ import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { drawZoneBand } from '../ui/zoneMeter';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, TOP_SHIFT, PALETTE, fitWidth } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -24,10 +24,10 @@ import type { EraCompleteData } from '../scenes/EraCompleteScene';
 
 const ORDER_COUNT = 3;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 90 };
-const SLIDER_X = GAME_WIDTH / 2 - 220;
-const SLIDER_Y = 420;
-const SLIDER_W = 440;
-const METER_Y = 480;
+const SLIDER_W = IS_PORTRAIT ? GAME_WIDTH - 80 : 440;
+const SLIDER_X = GAME_WIDTH / 2 - SLIDER_W / 2;
+const SLIDER_Y = 420 + TOP_SHIFT;
+const METER_Y = 480 + TOP_SHIFT;
 const MAX_RPM_SCALE = 500;
 
 export class IndustrialEraScene extends Phaser.Scene {
@@ -83,25 +83,25 @@ export class IndustrialEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Drag the driven gear slider until the needle sits in the green zone, for all 3 factory orders. 🔬 A bigger gear turns slower; a smaller gear turns faster.');
 
-    this.orderText = this.add.text(GAME_WIDTH / 2, 76, '', {
+    this.orderText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 700 },
+      wordWrap: { width: fitWidth(700) },
     }).setOrigin(0.5);
 
     this.drawGears();
     this.drawDriveButtons();
     this.drawRpmMeter();
 
-    this.statusText = this.add.text(GAME_WIDTH / 2, 508, '', {
+    this.statusText = this.add.text(GAME_WIDTH / 2, 508 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
     }).setOrigin(0.5);
 
-    this.rpmText = this.add.text(GAME_WIDTH / 2, 532, '', {
+    this.rpmText = this.add.text(GAME_WIDTH / 2, 532 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '14px',
       color: PALETTE.textMuted,
@@ -137,17 +137,18 @@ export class IndustrialEraScene extends Phaser.Scene {
     skyGradient(this, theme.skyTop, theme.skyBottom);
     const ground = this.add.graphics();
     ground.fillStyle(theme.ground, 1);
-    ground.fillRect(0, 520, GAME_WIDTH, GAME_HEIGHT - 520);
+    const groundTop = 520 + TOP_SHIFT;
+    ground.fillRect(0, groundTop, GAME_WIDTH, GAME_HEIGHT - groundTop);
     for (let i = 0; i < 3; i++) {
-      const stack = this.add.rectangle(140 + i * 90, 350, 24, 180, 0x2a2a2a);
+      const stack = this.add.rectangle(140 + i * 90, 350 + TOP_SHIFT, 24, 180, 0x2a2a2a);
       this.tweens.add({ targets: stack, alpha: { from: 0.9, to: 1 }, duration: 1 });
-      this.add.ellipse(140 + i * 90, 260, 36, 16, 0x5c5a52, 0.5);
+      this.add.ellipse(140 + i * 90, 260 + TOP_SHIFT, 36, 16, 0x5c5a52, 0.5);
     }
   }
 
   private drawGears(): void {
-    this.bigGear = this.makeGear(GAME_WIDTH / 2 - 100, 160, 46, 0xc77b2e);
-    this.smallGear = this.makeGear(GAME_WIDTH / 2 + 90, 170, 30, 0x9a7b4f);
+    this.bigGear = this.makeGear(GAME_WIDTH / 2 - 100, 160 + TOP_SHIFT, 46, 0xc77b2e);
+    this.smallGear = this.makeGear(GAME_WIDTH / 2 + 90, 170 + TOP_SHIFT, 30, 0x9a7b4f);
   }
 
   private makeGear(x: number, y: number, radius: number, color: number): Phaser.GameObjects.Container {
@@ -180,7 +181,7 @@ export class IndustrialEraScene extends Phaser.Scene {
       const btn = createButton(
         this,
         startX + i * spacing,
-        250,
+        250 + TOP_SHIFT,
         `${teeth}T`,
         () => {
           this.driveTeeth = teeth;
@@ -191,7 +192,7 @@ export class IndustrialEraScene extends Phaser.Scene {
       );
       this.gearButtons.push(btn);
     });
-    this.add.text(GAME_WIDTH / 2, 220, 'Drive gear teeth:', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.textMuted }).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 220 + TOP_SHIFT, 'Drive gear teeth:', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
   }
 
   private rpmToX(rpm: number): number {
@@ -199,19 +200,19 @@ export class IndustrialEraScene extends Phaser.Scene {
   }
 
   private drawRpmMeter(): void {
-    this.add.text(GAME_WIDTH / 2, METER_Y - 22, 'Output speed meter:', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, METER_Y - 22, 'Output speed meter:', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.textMuted }).setOrigin(0.5);
     this.add.rectangle(SLIDER_X + SLIDER_W / 2, METER_Y, SLIDER_W, 14, 0x2a2a2a).setStrokeStyle(2, 0xffffff, 0.25);
     this.rpmNeedle = this.add.triangle(SLIDER_X, METER_Y - 16, -9, 10, 9, 10, 0, -6, 0xffd34d).setStrokeStyle(1, 0xffffff, 0.8).setDepth(2);
   }
 
   private drawDrivenSlider(): void {
-    this.add.text(GAME_WIDTH / 2, 380, 'Driven gear teeth:', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.textMuted }).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 380 + TOP_SHIFT, 'Driven gear teeth:', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
 
     const track = this.add.rectangle(SLIDER_X + SLIDER_W / 2, SLIDER_Y, SLIDER_W, 10, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.3).setInteractive();
     this.sliderHandle = this.add.circle(SLIDER_X, SLIDER_Y, 18, 0xffd34d).setStrokeStyle(3, 0xffffff, 0.6)
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(18, 18, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
 
-    this.drivenText = this.add.text(GAME_WIDTH / 2, 448, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
+    this.drivenText = this.add.text(GAME_WIDTH / 2, 448 + TOP_SHIFT, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.draggingSlider || this.locked) return;

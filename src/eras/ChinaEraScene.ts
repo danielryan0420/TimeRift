@@ -15,7 +15,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, TOP_SHIFT, WIDTH_SCALE, fitWidth } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -78,22 +78,23 @@ export class ChinaEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Load the right trade good for each of the 6 caravan stops.');
 
-    this.add.text(GAME_WIDTH / 2, 100, 'Load the right trade good for each stop on the road!', {
+    this.add.text(GAME_WIDTH / 2, 100 + TOP_SHIFT, 'Load the right trade good for each stop on the road!', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
+    const panelW = fitWidth(640);
     const panel = this.add.graphics();
     panel.fillStyle(PALETTE.panelBg, 0.75);
-    panel.fillRoundedRect(GAME_WIDTH / 2 - 320, 130, 640, 90, 14);
+    panel.fillRoundedRect(GAME_WIDTH / 2 - panelW / 2, 130 + TOP_SHIFT, panelW, 90, 14);
 
-    this.requestText = this.add.text(GAME_WIDTH / 2, 175, '', {
+    this.requestText = this.add.text(GAME_WIDTH / 2, 175 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 580 },
+      wordWrap: { width: panelW - 60 },
     }).setOrigin(0.5);
 
     this.drawGoodButtons();
@@ -127,7 +128,7 @@ export class ChinaEraScene extends Phaser.Scene {
 
     const mountains = this.add.graphics();
     mountains.fillStyle(0x5a3a2a, 1);
-    this.ridge(mountains, 0, 460, [0, 420, 160, 470, 320, 410, 500, 460, 680, 400, 860, 450, 960, 420]);
+    this.ridge(mountains, 0, 460, [0, 420, 160, 470, 320, 410, 500, 460, 680, 400, 860, 450, 960, 420].map((v, i) => (i % 2 === 0 ? v * WIDTH_SCALE : v)));
 
     mountains.fillStyle(theme.ground, 1);
     mountains.fillRect(0, 480, GAME_WIDTH, GAME_HEIGHT - 480);
@@ -136,15 +137,16 @@ export class ChinaEraScene extends Phaser.Scene {
     wall.lineStyle(14, 0xc9a876, 1);
     wall.beginPath();
     wall.moveTo(0, 430);
-    wall.lineTo(180, 400);
-    wall.lineTo(360, 440);
-    wall.lineTo(560, 390);
-    wall.lineTo(760, 430);
-    wall.lineTo(960, 400);
+    wall.lineTo(180 * WIDTH_SCALE, 400);
+    wall.lineTo(360 * WIDTH_SCALE, 440);
+    wall.lineTo(560 * WIDTH_SCALE, 390);
+    wall.lineTo(760 * WIDTH_SCALE, 430);
+    wall.lineTo(960 * WIDTH_SCALE, 400);
     wall.strokePath();
 
-    for (const x of [100, 320, 540, 760]) {
-      const towerY = x === 320 || x === 760 ? 410 : x === 100 ? 420 : 400;
+    for (const baseX of [100, 320, 540, 760]) {
+      const x = baseX * WIDTH_SCALE;
+      const towerY = baseX === 320 || baseX === 760 ? 410 : baseX === 100 ? 420 : 400;
       wall.fillStyle(0xb5906a, 1);
       wall.fillRect(x - 12, towerY - 26, 24, 30);
       wall.fillStyle(0x8a6a4a, 1);
@@ -163,8 +165,10 @@ export class ChinaEraScene extends Phaser.Scene {
 
   private drawGoodButtons(): void {
     const y = GAME_HEIGHT - 90;
-    const spacing = 160;
-    const startX = GAME_WIDTH / 2 - (spacing * (GOODS.length - 1)) / 2;
+    const n = GOODS.length;
+    const width = IS_PORTRAIT ? Math.min(150, (GAME_WIDTH - 32 - 10 * (n - 1)) / n) : 150;
+    const spacing = width + 10;
+    const startX = GAME_WIDTH / 2 - (spacing * (n - 1)) / 2;
     GOODS.forEach((good, i) => {
       createButton(
         this,
@@ -172,14 +176,15 @@ export class ChinaEraScene extends Phaser.Scene {
         y,
         `${GOOD_INFO[good].label}`,
         () => this.chooseGood(good),
-        { width: 150, height: 56, fontSize: 17 },
+        { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 17 },
+
       );
     });
   }
 
   private drawProgressTracker(): void {
     const startX = GAME_WIDTH / 2 - (TOTAL_STOPS * 36) / 2;
-    const y = 480;
+    const y = GAME_HEIGHT - 120;
     this.progressStops = [];
     for (let i = 0; i < TOTAL_STOPS; i++) {
       const rect = this.add.rectangle(startX + i * 36, y, 26, 26, 0x4a3f66).setStrokeStyle(2, 0xffffff, 0.3);

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import { ARTIFACTS, artifactMeterText } from '../core/progression';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE } from '../ui/theme';
 import { createButton } from '../ui/GameButton';
 import { starField } from '../ui/parallax';
 
@@ -42,10 +42,10 @@ export class MuseumScene extends Phaser.Scene {
       color: PALETTE.textLight,
     }).setOrigin(0.5, 0);
 
-    const cols = ARTIFACTS.length > 8 ? 5 : 4;
-    const cardW = cols > 4 ? 150 : 180;
+    const cols = IS_PORTRAIT ? 3 : ARTIFACTS.length > 8 ? 5 : 4;
     const cellW = GAME_WIDTH / cols;
-    const cellH = 180;
+    const cardW = Math.min(cols > 4 ? 150 : 180, cellW - 16);
+    const cellH = IS_PORTRAIT ? 160 : 180;
     const startX = cellW / 2;
     const startY = 190;
 

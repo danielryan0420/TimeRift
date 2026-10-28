@@ -7,7 +7,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, TOP_SHIFT, PALETTE, fitWidth } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -17,7 +17,7 @@ import type { EraCompleteData } from '../scenes/EraCompleteScene';
 const LEG_COUNT = 4;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 90 };
 const DIAL_X = GAME_WIDTH / 2;
-const DIAL_Y = 340;
+const DIAL_Y = 340 + TOP_SHIFT;
 const DIAL_R = 110;
 
 export class VikingsEraScene extends Phaser.Scene {
@@ -65,18 +65,18 @@ export class VikingsEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Use Polaris to steer the right heading on all 4 legs of the voyage.');
 
-    this.legText = this.add.text(GAME_WIDTH / 2, 76, '', {
+    this.legText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
-    this.clueText = this.add.text(GAME_WIDTH / 2, 98, '', {
+    this.clueText = this.add.text(GAME_WIDTH / 2, 98 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 640 },
+      wordWrap: { width: fitWidth(640) },
     }).setOrigin(0.5);
 
     this.drawDial();
@@ -114,9 +114,9 @@ export class VikingsEraScene extends Phaser.Scene {
     const theme = ERA_THEME.vikings;
     skyGradient(this, theme.skyTop, theme.skyBottom);
     starField(this, 70, 300);
-    this.add.circle(GAME_WIDTH / 2, 60, 5, 0xffffff, 1);
-    this.add.text(GAME_WIDTH / 2, 60, '★', { fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
-    this.add.text(GAME_WIDTH / 2, 34, 'Polaris', { fontFamily: FONT_FAMILY, fontSize: '12px', color: PALETTE.textMuted }).setOrigin(0.5);
+    this.add.circle(GAME_WIDTH / 2, 60 + TOP_SHIFT, 5, 0xffffff, 1);
+    this.add.text(GAME_WIDTH / 2, 60 + TOP_SHIFT, '★', { fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 34 + TOP_SHIFT, 'Polaris', { fontFamily: FONT_FAMILY, fontSize: '12px', color: PALETTE.textMuted }).setOrigin(0.5);
 
     const sea = this.add.graphics();
     sea.fillStyle(theme.ground, 1);

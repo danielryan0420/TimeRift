@@ -1,7 +1,38 @@
 import type { EraId } from '../core/types';
 
-export const GAME_WIDTH = 960;
-export const GAME_HEIGHT = 600;
+/**
+ * The game's virtual (design) resolution. Landscape/desktop keeps the original 960x600
+ * the whole game was designed against. Portrait phones get their own, taller design
+ * resolution close to a real iPhone's aspect ratio (~0.46-0.56) so Phaser.Scale.FIT
+ * scales the canvas up close to 1:1 instead of shrinking a 960-wide landscape canvas
+ * down to a sliver — that shrink-to-fit is what made every font/button look tiny.
+ */
+function computeGameSize(): { width: number; height: number } {
+  const w = typeof window !== 'undefined' ? window.innerWidth : 960;
+  const h = typeof window !== 'undefined' ? window.innerHeight : 600;
+  if (h > w) return { width: 440, height: 920 };
+  return { width: 960, height: 600 };
+}
+
+const SIZE = computeGameSize();
+export const GAME_WIDTH = SIZE.width;
+export const GAME_HEIGHT = SIZE.height;
+export const IS_PORTRAIT = GAME_HEIGHT > GAME_WIDTH;
+
+/** Clamp a desktop-sized panel/card width down so it never overflows the portrait canvas. */
+export function fitWidth(desired: number, margin = 40): number {
+  return Math.min(desired, GAME_WIDTH - margin);
+}
+
+/**
+ * Extra vertical offset era scenes should add to their "just below the HUD" content row.
+ * Portrait's HUD is a taller two-row bar (see EraHUD) and its wrapped goal text can run to
+ * 2-3 lines, so anything placed right under it needs to move down to stay clear.
+ */
+export const TOP_SHIFT = IS_PORTRAIT ? 130 : 0;
+
+/** Multiply hand-tuned, landscape-sized (960px-wide) decorative x-coordinates by this to keep them on-canvas in portrait. */
+export const WIDTH_SCALE = GAME_WIDTH / 960;
 
 export interface EraTheme {
   name: string;

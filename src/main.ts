@@ -61,3 +61,19 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// GAME_WIDTH/GAME_HEIGHT pick a portrait-vs-landscape design resolution once at load time.
+// If the phone is physically rotated mid-session, reload so layout picks the right one
+// again — safe because every save happens through localStorage, not in-memory-only state.
+let wasPortrait = window.innerHeight > window.innerWidth;
+let resizeTimer: number | undefined;
+window.addEventListener('resize', () => {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => {
+    const isPortrait = window.innerHeight > window.innerWidth;
+    if (isPortrait !== wasPortrait) {
+      wasPortrait = isPortrait;
+      window.location.reload();
+    }
+  }, 300);
+});

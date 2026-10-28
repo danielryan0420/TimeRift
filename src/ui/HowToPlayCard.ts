@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from './theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, fitWidth } from './theme';
 import { createButton } from './GameButton';
 import { sfx } from '../audio/SoundManager';
 
@@ -29,9 +29,7 @@ export interface HowToPlayOptions {
  */
 export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): void {
   const depth = 5000;
-  const hasQuiz = !!opts.quiz;
-  const panelW = 640;
-  const panelH = hasQuiz ? 360 : 240;
+  const panelW = fitWidth(640);
 
   const backdrop = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.68)
     .setOrigin(0)
@@ -41,27 +39,7 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
   const container = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(depth + 1).setScale(0.85).setAlpha(0);
 
   const bg = scene.add.graphics();
-  bg.fillStyle(PALETTE.panelBg, 0.97);
-  bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
-  bg.lineStyle(3, PALETTE.panelLine, 0.9);
-  bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
   container.add(bg);
-
-  const titleText = scene.add.text(0, -panelH / 2 + 36, `${opts.emoji ?? '🎮'} ${opts.title}`, {
-    fontFamily: FONT_FAMILY,
-    fontSize: '24px',
-    color: PALETTE.gold,
-  }).setOrigin(0.5);
-  container.add(titleText);
-
-  const lineText = scene.add.text(0, -panelH / 2 + (hasQuiz ? 86 : 100), opts.line, {
-    fontFamily: FONT_FAMILY,
-    fontSize: '17px',
-    color: PALETTE.textLight,
-    align: 'center',
-    wordWrap: { width: panelW - 70 },
-  }).setOrigin(0.5);
-  container.add(lineText);
 
   const finish = () => {
     sfx.click();
@@ -77,51 +55,146 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
     });
   };
 
-  if (opts.quiz) {
-    const qText = scene.add.text(0, -6, opts.quiz.question, {
+  if (IS_PORTRAIT) {
+    // Stack everything top-down, measuring each piece's real height, so long instructions
+    // (which wrap to many lines on a narrow phone) never overlap the quiz or buttons below.
+    let cursorY = 26;
+    const toShift: Phaser.GameObjects.GameObject[] = [];
+    const place = <T extends Phaser.GameObjects.GameObject>(obj: T): T => {
+      container.add(obj);
+      toShift.push(obj);
+      return obj;
+    };
+
+    const titleText = place(scene.add.text(0, cursorY, `${opts.emoji ?? '🎮'} ${opts.title}`, {
+      fontFamily: FONT_FAMILY, fontSize: '22px', color: PALETTE.gold, align: 'center', wordWrap: { width: panelW - 60 },
+    }).setOrigin(0.5, 0));
+    cursorY += titleText.displayHeight + 16;
+
+    const lineText = place(scene.add.text(0, cursorY, opts.line, {
+      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: panelW - 60 },
+    }).setOrigin(0.5, 0));
+    cursorY += lineText.displayHeight + 18;
+
+    let feedback: Phaser.GameObjects.Text | undefined;
+    let goBtn: Phaser.GameObjects.Container;
+
+    if (opts.quiz) {
+      const qText = place(scene.add.text(0, cursorY, opts.quiz.question, {
+        fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: panelW - 60 },
+      }).setOrigin(0.5, 0));
+      cursorY += qText.displayHeight + 16;
+
+      let answered = false;
+      opts.quiz.options.forEach((option) => {
+        const btnY = cursorY + 26;
+        const btn = place(createButton(scene, 0, btnY, option.label, () => {
+          if (answered) return;
+          answered = true;
+          if (option.correct) {
+            sfx.success();
+            feedback!.setColor(PALETTE.success).setText('✅ Nice — that\'s it!');
+          } else {
+            sfx.error();
+            feedback!.setColor(PALETTE.textMuted).setText('Good guess — let\'s try it for real!');
+          }
+          goBtn.setVisible(true);
+        }, { width: fitWidth(320, 80), height: 52, fontSize: 16 }));
+        void btn;
+        cursorY += 62;
+      });
+      cursorY += 6;
+
+      feedback = place(scene.add.text(0, cursorY, '', {
+        fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.success, align: 'center', wordWrap: { width: panelW - 60 },
+      }).setOrigin(0.5, 0));
+      cursorY += 28;
+
+      goBtn = place(createButton(scene, 0, cursorY + 26, opts.dismissLabel ?? "Let's Go!", finish, { width: 200, height: 52 }));
+      goBtn.setVisible(false);
+      cursorY += 52 + 26;
+    } else {
+      goBtn = place(createButton(scene, 0, cursorY + 26, opts.dismissLabel ?? 'Got it!', finish, { width: 220, height: 52 }));
+      cursorY += 52 + 26;
+    }
+
+    const panelH = cursorY + 20;
+    bg.fillStyle(PALETTE.panelBg, 0.97);
+    bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
+    bg.lineStyle(3, PALETTE.panelLine, 0.9);
+    bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
+    for (const obj of toShift) {
+      (obj as unknown as { y: number }).y -= panelH / 2;
+    }
+  } else {
+    const hasQuiz = !!opts.quiz;
+    const panelH = hasQuiz ? 360 : 240;
+    bg.fillStyle(PALETTE.panelBg, 0.97);
+    bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
+    bg.lineStyle(3, PALETTE.panelLine, 0.9);
+    bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
+
+    const titleText = scene.add.text(0, -panelH / 2 + 36, `${opts.emoji ?? '🎮'} ${opts.title}`, {
       fontFamily: FONT_FAMILY,
-      fontSize: '16px',
+      fontSize: '24px',
+      color: PALETTE.gold,
+    }).setOrigin(0.5);
+    container.add(titleText);
+
+    const lineText = scene.add.text(0, -panelH / 2 + (hasQuiz ? 86 : 100), opts.line, {
+      fontFamily: FONT_FAMILY,
+      fontSize: '17px',
       color: PALETTE.textLight,
       align: 'center',
       wordWrap: { width: panelW - 70 },
     }).setOrigin(0.5);
-    container.add(qText);
+    container.add(lineText);
 
-    const feedback = scene.add.text(0, 46, '', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '15px',
-      color: PALETTE.success,
-      align: 'center',
-      wordWrap: { width: panelW - 70 },
-    }).setOrigin(0.5);
-    container.add(feedback);
+    if (opts.quiz) {
+      const qText = scene.add.text(0, -6, opts.quiz.question, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '16px',
+        color: PALETTE.textLight,
+        align: 'center',
+        wordWrap: { width: panelW - 70 },
+      }).setOrigin(0.5);
+      container.add(qText);
 
-    const goBtn = createButton(scene, 0, panelH / 2 - 36, opts.dismissLabel ?? "Let's Go!", finish, { width: 200, height: 52 });
-    goBtn.setVisible(false);
-    container.add(goBtn);
+      const feedback = scene.add.text(0, 46, '', {
+        fontFamily: FONT_FAMILY,
+        fontSize: '16px',
+        color: PALETTE.success,
+        align: 'center',
+        wordWrap: { width: panelW - 70 },
+      }).setOrigin(0.5);
+      container.add(feedback);
 
-    let answered = false;
-    const count = opts.quiz.options.length;
-    const spacing = 190;
-    const startX = -(spacing * (count - 1)) / 2;
-    opts.quiz.options.forEach((option, i) => {
-      const btn = createButton(scene, startX + i * spacing, 80, option.label, () => {
-        if (answered) return;
-        answered = true;
-        if (option.correct) {
-          sfx.success();
-          feedback.setColor(PALETTE.success).setText('✅ Nice — that\'s it!');
-        } else {
-          sfx.error();
-          feedback.setColor(PALETTE.textMuted).setText('Good guess — let\'s try it for real!');
-        }
-        goBtn.setVisible(true);
-      }, { width: 170, height: 56, fontSize: 14 });
-      container.add(btn);
-    });
-  } else {
-    const goBtn = createButton(scene, 0, panelH / 2 - 44, opts.dismissLabel ?? 'Got it!', finish, { width: 220, height: 52 });
-    container.add(goBtn);
+      const goBtn = createButton(scene, 0, panelH / 2 - 36, opts.dismissLabel ?? "Let's Go!", finish, { width: 200, height: 52 });
+      goBtn.setVisible(false);
+      container.add(goBtn);
+
+      let answered = false;
+      const count = opts.quiz.options.length;
+      opts.quiz.options.forEach((option, i) => {
+        const btnX = -(190 * (count - 1)) / 2 + i * 190;
+        const btn = createButton(scene, btnX, 80, option.label, () => {
+          if (answered) return;
+          answered = true;
+          if (option.correct) {
+            sfx.success();
+            feedback.setColor(PALETTE.success).setText('✅ Nice — that\'s it!');
+          } else {
+            sfx.error();
+            feedback.setColor(PALETTE.textMuted).setText('Good guess — let\'s try it for real!');
+          }
+          goBtn.setVisible(true);
+        }, { width: 170, height: 56, fontSize: 16 });
+        container.add(btn);
+      });
+    } else {
+      const goBtn = createButton(scene, 0, panelH / 2 - 44, opts.dismissLabel ?? 'Got it!', finish, { width: 220, height: 52 });
+      container.add(goBtn);
+    }
   }
 
   scene.tweens.add({ targets: container, alpha: 1, scale: 1, duration: 220, ease: 'Back.easeOut' });

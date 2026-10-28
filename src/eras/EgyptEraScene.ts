@@ -8,7 +8,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, TOP_SHIFT, fitWidth } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -71,22 +71,23 @@ export class EgyptEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Move all 6 blocks by picking the right tool for each one.');
 
-    this.add.text(GAME_WIDTH / 2, 100, 'Pick the right tool to move each block!', {
+    this.add.text(GAME_WIDTH / 2, 100 + TOP_SHIFT, 'Pick the right tool to move each block!', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
+    const panelW = fitWidth(640);
     const panel = this.add.graphics();
     panel.fillStyle(PALETTE.panelBg, 0.75);
-    panel.fillRoundedRect(GAME_WIDTH / 2 - 320, 130, 640, 90, 14);
+    panel.fillRoundedRect(GAME_WIDTH / 2 - panelW / 2, 130 + TOP_SHIFT, panelW, 90, 14);
 
-    this.situationText = this.add.text(GAME_WIDTH / 2, 175, '', {
+    this.situationText = this.add.text(GAME_WIDTH / 2, 175 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 580 },
+      wordWrap: { width: panelW - 60 },
     }).setOrigin(0.5);
 
     this.drawToolButtons();
@@ -142,27 +143,30 @@ export class EgyptEraScene extends Phaser.Scene {
     this.add.circle(GAME_WIDTH - 140, 110, 56, 0xfff2c4, 0.9);
     this.add.circle(GAME_WIDTH - 140, 110, 56, 0xfff2c4, 0.3).setScale(1.6);
 
+    const duneTop = GAME_HEIGHT * 0.733;
+    const groundTop = GAME_HEIGHT * 0.8;
     const dunes = this.add.graphics();
     dunes.fillStyle(0xd9a85c, 1);
     dunes.beginPath();
     dunes.moveTo(0, GAME_HEIGHT);
-    dunes.lineTo(0, 440);
+    dunes.lineTo(0, duneTop);
     for (let x = 0; x <= GAME_WIDTH; x += 40) {
-      dunes.lineTo(x, 440 + Math.sin(x * 0.02) * 12);
+      dunes.lineTo(x, duneTop + Math.sin(x * 0.02) * 12);
     }
     dunes.lineTo(GAME_WIDTH, GAME_HEIGHT);
     dunes.closePath();
     dunes.fillPath();
 
     dunes.fillStyle(theme.ground, 1);
-    dunes.fillRect(0, 480, GAME_WIDTH, GAME_HEIGHT - 480);
+    dunes.fillRect(0, groundTop, GAME_WIDTH, GAME_HEIGHT - groundTop);
 
     const g = this.add.graphics();
+    const pyramidY = GAME_HEIGHT * 0.767;
     g.fillStyle(0xb9793a, 0.9);
-    this.triangle(g, 650, 460, 100);
-    this.triangle(g, 740, 460, 70);
+    this.triangle(g, GAME_WIDTH * 0.677, pyramidY, IS_PORTRAIT ? 50 : 100);
+    this.triangle(g, GAME_WIDTH * 0.771, pyramidY, IS_PORTRAIT ? 35 : 70);
     g.fillStyle(0x9c6530, 1);
-    this.triangle(g, 820, 460, 150);
+    this.triangle(g, GAME_WIDTH * 0.854, pyramidY, IS_PORTRAIT ? 75 : 150);
   }
 
   private triangle(g: Phaser.GameObjects.Graphics, cx: number, baseY: number, size: number): void {
@@ -176,8 +180,10 @@ export class EgyptEraScene extends Phaser.Scene {
 
   private drawToolButtons(): void {
     const y = GAME_HEIGHT - 90;
-    const spacing = 160;
-    const startX = GAME_WIDTH / 2 - (spacing * (TOOLS.length - 1)) / 2;
+    const n = TOOLS.length;
+    const width = IS_PORTRAIT ? Math.min(150, (GAME_WIDTH - 32 - 10 * (n - 1)) / n) : 150;
+    const spacing = width + 10;
+    const startX = GAME_WIDTH / 2 - (spacing * (n - 1)) / 2;
     TOOLS.forEach((tool, i) => {
       createButton(
         this,
@@ -185,14 +191,14 @@ export class EgyptEraScene extends Phaser.Scene {
         y,
         `${TOOL_INFO[tool].label}`,
         () => this.chooseTool(tool),
-        { width: 150, height: 56, fontSize: 17 },
+        { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 17 },
       );
     });
   }
 
   private drawProgressTracker(): void {
     const startX = GAME_WIDTH / 2 - (TOTAL_BLOCKS * 36) / 2;
-    const y = 480;
+    const y = GAME_HEIGHT - 120;
     this.progressBlocks = [];
     for (let i = 0; i < TOTAL_BLOCKS; i++) {
       const rect = this.add.rectangle(startX + i * 36, y, 26, 26, 0x4a3f66).setStrokeStyle(2, 0xffffff, 0.3);

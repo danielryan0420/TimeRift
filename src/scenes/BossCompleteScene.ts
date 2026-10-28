@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import { GADGET_SKINS, recordBossVictory } from '../core/progression';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE, fitWidth } from '../ui/theme';
 import { createButton } from '../ui/GameButton';
 import { burstConfetti, burstSuccess } from '../ui/particles';
 import { starField } from '../ui/parallax';
@@ -32,12 +32,12 @@ export class BossCompleteScene extends Phaser.Scene {
     sfx.success();
     this.time.delayedCall(200, () => burstSuccess(this, GAME_WIDTH / 2, 90, 0x7c3aed));
 
-    this.add.text(GAME_WIDTH / 2, 160, 'You out-puzzled the Chronarch using everything you learned\nacross ten eras of history. TIME RIFT is sealed... for now.', {
+    this.add.text(GAME_WIDTH / 2, 160, 'You out-puzzled the Chronarch using everything you learned across ten eras of history. TIME RIFT is sealed... for now.', {
       fontFamily: FONT_FAMILY,
       fontSize: '17px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 700 },
+      wordWrap: { width: fitWidth(700) },
     }).setOrigin(0.5, 0);
 
     let y = 260;
@@ -51,30 +51,35 @@ export class BossCompleteScene extends Phaser.Scene {
       y += 40;
     }
 
+    const panelW = fitWidth(680);
     const panel = this.add.graphics();
-    panel.fillStyle(PALETTE.panelBg, 0.9);
-    panel.fillRoundedRect(GAME_WIDTH / 2 - 340, y, 680, 180, 16);
-    panel.lineStyle(2, PALETTE.panelLine, 0.8);
-    panel.strokeRoundedRect(GAME_WIDTH / 2 - 340, y, 680, 180, 16);
 
-    this.add.text(GAME_WIDTH / 2, y + 24, '📜 Who was the Chronarch, really?', {
+    const titleText = this.add.text(GAME_WIDTH / 2, y + 24, '📜 Who was the Chronarch, really?', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.gold,
+      align: 'center',
+      wordWrap: { width: panelW - 40 },
     }).setOrigin(0.5, 0);
 
-    this.add.text(
+    const bodyText = this.add.text(
       GAME_WIDTH / 2,
-      y + 60,
+      titleText.y + titleText.displayHeight + 14,
       "The Chronarch isn't any one historical figure — it's a stand-in for how real breakthroughs happen: someone combines ideas from ramps and levers to gear ratios and rocket equations to solve a problem nobody single era could solve alone.",
       {
         fontFamily: FONT_FAMILY,
-        fontSize: '15px',
+        fontSize: '16px',
         color: PALETTE.textLight,
         align: 'center',
-        wordWrap: { width: 620 },
+        wordWrap: { width: panelW - 60 },
       },
     ).setOrigin(0.5, 0);
+
+    const panelH = Math.min(bodyText.y + bodyText.displayHeight + 20 - y, GAME_HEIGHT - y - 90);
+    panel.fillStyle(PALETTE.panelBg, 0.9);
+    panel.fillRoundedRect(GAME_WIDTH / 2 - panelW / 2, y, panelW, panelH, 16);
+    panel.lineStyle(2, PALETTE.panelLine, 0.8);
+    panel.strokeRoundedRect(GAME_WIDTH / 2 - panelW / 2, y, panelW, panelH, 16);
 
     createButton(this, GAME_WIDTH / 2, GAME_HEIGHT - 50, 'Back to the Rift Map', () => {
       portalOut(this, () => this.scene.start('Hub'));

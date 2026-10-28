@@ -7,7 +7,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, TOP_SHIFT, PALETTE, fitWidth } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -17,7 +17,7 @@ import type { EraCompleteData } from '../scenes/EraCompleteScene';
 const CIPHER_COUNT = 3;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 90 };
 const DIAL_X = GAME_WIDTH / 2;
-const DIAL_Y = 360;
+const DIAL_Y = 360 + TOP_SHIFT;
 const DIAL_R = 110;
 
 export class RevolutionEraScene extends Phaser.Scene {
@@ -66,27 +66,29 @@ export class RevolutionEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Rotate the wheel to decode all 3 secret messages.');
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 70, '', {
+    this.roundText = this.add.text(GAME_WIDTH / 2, 70 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '15px',
+      fontSize: '16px',
       color: PALETTE.textMuted,
+      align: 'center',
+      wordWrap: { width: fitWidth(700) },
     }).setOrigin(0.5);
 
-    this.cipherText = this.add.text(GAME_WIDTH / 2, 94, '', {
+    this.cipherText = this.add.text(GAME_WIDTH / 2, 100 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.danger,
       align: 'center',
-      wordWrap: { width: 700 },
+      wordWrap: { width: fitWidth(700) },
       letterSpacing: 2 as unknown as number,
     }).setOrigin(0.5);
 
-    this.decodedText = this.add.text(GAME_WIDTH / 2, 126, '', {
+    this.decodedText = this.add.text(GAME_WIDTH / 2, 136 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.success,
       align: 'center',
-      wordWrap: { width: 700 },
+      wordWrap: { width: fitWidth(700) },
       letterSpacing: 2 as unknown as number,
     }).setOrigin(0.5);
 
@@ -127,7 +129,8 @@ export class RevolutionEraScene extends Phaser.Scene {
     starField(this, 40, 250);
     const ground = this.add.graphics();
     ground.fillStyle(theme.ground, 1);
-    ground.fillRect(0, 500, GAME_WIDTH, GAME_HEIGHT - 500);
+    const groundTop = TOP_SHIFT > 0 ? DIAL_Y + DIAL_R + 100 : 500;
+    ground.fillRect(0, groundTop, GAME_WIDTH, GAME_HEIGHT - groundTop);
   }
 
   private drawDial(): void {

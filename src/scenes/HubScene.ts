@@ -3,7 +3,7 @@ import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import type { EraId } from '../core/types';
 import { ERA_ORDER } from '../core/types';
 import { isBossUnlocked, isEraUnlocked, totalStars } from '../core/progression';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, fitWidth } from '../ui/theme';
 import { starField } from '../ui/parallax';
 import { createButton } from '../ui/GameButton';
 import { portalOut, portalIn } from '../ui/PortalTransition';
@@ -23,7 +23,7 @@ const ERA_SCENE_KEY: Record<EraId, string> = {
   moon: 'MoonEra',
 };
 
-const NODE_POSITIONS: Record<EraId, { x: number; y: number }> = {
+const LANDSCAPE_NODE_POSITIONS: Record<EraId, { x: number; y: number }> = {
   egypt: { x: 80, y: 460 },
   rome: { x: 210, y: 340 },
   china: { x: 330, y: 460 },
@@ -35,8 +35,29 @@ const NODE_POSITIONS: Record<EraId, { x: number; y: number }> = {
   flight: { x: 820, y: 170 },
   moon: { x: 900, y: 330 },
 };
+const LANDSCAPE_BOSS_NODE_POS = { x: 900, y: 470 };
 
-const BOSS_NODE_POS = { x: 900, y: 470 };
+/** Node radius shrinks a bit in portrait so the whole vertical path fits the taller, narrower canvas. */
+export const NODE_RADIUS = IS_PORTRAIT ? 26 : 34;
+export const BOSS_RADIUS = IS_PORTRAIT ? 30 : 40;
+
+/** A zigzag path down the screen: horizontal offset keeps consecutive nodes well apart even with a tight vertical step. */
+function buildPortraitPositions(): { nodes: Record<EraId, { x: number; y: number }>; boss: { x: number; y: number } } {
+  const topY = 220;
+  const dy = 62;
+  const leftX = GAME_WIDTH * 0.28;
+  const rightX = GAME_WIDTH * 0.72;
+  const nodes = {} as Record<EraId, { x: number; y: number }>;
+  ERA_ORDER.forEach((era, i) => {
+    nodes[era] = { x: i % 2 === 0 ? leftX : rightX, y: topY + i * dy };
+  });
+  const boss = { x: GAME_WIDTH / 2, y: topY + ERA_ORDER.length * dy };
+  return { nodes, boss };
+}
+
+const PORTRAIT = IS_PORTRAIT ? buildPortraitPositions() : undefined;
+const NODE_POSITIONS: Record<EraId, { x: number; y: number }> = PORTRAIT?.nodes ?? LANDSCAPE_NODE_POSITIONS;
+const BOSS_NODE_POS = PORTRAIT?.boss ?? LANDSCAPE_BOSS_NODE_POS;
 
 const ERA_ICON: Record<EraId, string> = {
   egypt: '🔺',
@@ -64,15 +85,18 @@ export class HubScene extends Phaser.Scene {
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x120a24).setOrigin(0);
     starField(this, 90);
 
+    const headerWrap = IS_PORTRAIT ? GAME_WIDTH - 220 : fitWidth(700);
     this.add.text(16, 68, `Welcome back, ${profile.name}!`, {
       fontFamily: FONT_FAMILY,
-      fontSize: '18px',
+      fontSize: '16px',
       color: PALETTE.textMuted,
+      wordWrap: { width: headerWrap },
     });
     this.add.text(16, 92, `⭐ ${totalStars(profile)} / ${ERA_ORDER.length * 3}`, {
       fontFamily: FONT_FAMILY,
-      fontSize: '18px',
+      fontSize: '16px',
       color: PALETTE.gold,
+      wordWrap: { width: headerWrap },
     });
 
     const eraCount = ERA_ORDER.filter((era) => profile.eraProgress[era].completed).length;
@@ -81,8 +105,9 @@ export class HubScene extends Phaser.Scene {
       : `🏺 ${eraCount} / ${ERA_ORDER.length} eras mended — tap a glowing portal to continue!`;
     this.add.text(16, 116, goalLine, {
       fontFamily: FONT_FAMILY,
-      fontSize: '14px',
+      fontSize: '16px',
       color: PALETTE.textMuted,
+      wordWrap: { width: headerWrap },
     });
 
     createButton(this, GAME_WIDTH - 110, 40, '🏺 Museum', () => this.scene.start('Museum'), { width: 170, height: 48 });
@@ -122,8 +147,9 @@ export class HubScene extends Phaser.Scene {
     const unlocked = isEraUnlocked(profile, era);
     const progress = profile.eraProgress[era];
 
+    const r = NODE_RADIUS;
     if (unlocked) {
-      const glow = this.add.circle(pos.x, pos.y, 44, theme.accent, 0.35);
+      const glow = this.add.circle(pos.x, pos.y, r + 10, theme.accent, 0.35);
       this.tweens.add({
         targets: glow,
         scale: { from: 1, to: 1.2 },
@@ -135,7 +161,7 @@ export class HubScene extends Phaser.Scene {
       });
     }
 
-    const circle = this.add.circle(pos.x, pos.y, 34, unlocked ? theme.accent : 0x3a3450, 1)
+    const circle = this.add.circle(pos.x, pos.y, r, unlocked ? theme.accent : 0x3a3450, 1)
       .setStrokeStyle(3, isNextUp ? 0xffd34d : 0xffffff, unlocked ? (isNextUp ? 1 : 0.6) : 0.2)
       .setInteractive({ useHandCursor: unlocked });
 
@@ -151,10 +177,10 @@ export class HubScene extends Phaser.Scene {
     }
 
     this.add.text(pos.x, pos.y, unlocked ? ERA_ICON[era] : '🔒', {
-      fontSize: '28px',
+      fontSize: IS_PORTRAIT ? '22px' : '28px',
     }).setOrigin(0.5);
 
-    this.add.text(pos.x, pos.y + 44, theme.name, {
+    this.add.text(pos.x, pos.y + r + 10, theme.name, {
       fontFamily: FONT_FAMILY,
       fontSize: '13px',
       color: unlocked ? PALETTE.textLight : PALETTE.textMuted,
@@ -163,17 +189,18 @@ export class HubScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
 
     if (progress.completed) {
-      this.add.text(pos.x, pos.y - 46, '⭐'.repeat(progress.stars) + '☆'.repeat(3 - progress.stars), {
+      this.add.text(pos.x, pos.y - r - 12, '⭐'.repeat(progress.stars) + '☆'.repeat(3 - progress.stars), {
         fontSize: '14px',
       }).setOrigin(0.5);
     } else if (isNextUp) {
-      const tag = this.add.text(pos.x, pos.y - 52, '👉 Start here!', {
+      const tagY = pos.y - r - 18;
+      const tag = this.add.text(pos.x, tagY, '👉 Start here!', {
         fontFamily: FONT_FAMILY,
         fontSize: '13px',
         color: PALETTE.gold,
         align: 'center',
       }).setOrigin(0.5);
-      this.tweens.add({ targets: tag, y: { from: pos.y - 52, to: pos.y - 60 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: tag, y: { from: tagY, to: tagY - 8 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 
     circle.on('pointerup', () => {
@@ -193,7 +220,8 @@ export class HubScene extends Phaser.Scene {
     const unlocked = isBossUnlocked(profile);
     const defeated = profile.bossDefeated;
 
-    const circle = this.add.circle(pos.x, pos.y, 40, unlocked ? 0x5a1030 : 0x3a3450, 1)
+    const r = BOSS_RADIUS;
+    const circle = this.add.circle(pos.x, pos.y, r, unlocked ? 0x5a1030 : 0x3a3450, 1)
       .setStrokeStyle(3, unlocked ? 0xff3b6b : 0xffffff, unlocked ? 0.9 : 0.2)
       .setInteractive({ useHandCursor: unlocked });
 
@@ -201,8 +229,8 @@ export class HubScene extends Phaser.Scene {
       this.tweens.add({ targets: circle, scale: { from: 1, to: 1.08 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 
-    this.add.text(pos.x, pos.y, defeated ? '🏆' : unlocked ? '👹' : '🔒', { fontSize: '30px' }).setOrigin(0.5);
-    this.add.text(pos.x, pos.y + 50, 'Final Showdown', {
+    this.add.text(pos.x, pos.y, defeated ? '🏆' : unlocked ? '👹' : '🔒', { fontSize: IS_PORTRAIT ? '24px' : '30px' }).setOrigin(0.5);
+    this.add.text(pos.x, pos.y + r + 10, 'Final Showdown', {
       fontFamily: FONT_FAMILY,
       fontSize: '13px',
       color: unlocked ? PALETTE.textLight : PALETTE.textMuted,

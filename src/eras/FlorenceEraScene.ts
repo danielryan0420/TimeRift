@@ -7,7 +7,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, TOP_SHIFT, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -16,8 +16,10 @@ import type { EraCompleteData } from '../scenes/EraCompleteScene';
 
 const CANVAS_COUNT = 3;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 80 };
-const FRAME_Y = 190;
+const FRAME_Y = 190 + TOP_SHIFT;
 const FRAME_H = 260;
+/** Widest a canvas frame is ever allowed to render, so puzzle widths wider than the portrait canvas still fit. */
+const MAX_FRAME_W = GAME_WIDTH - 60;
 
 export class FlorenceEraScene extends Phaser.Scene {
   private canvases: CanvasChallenge[] = [];
@@ -34,6 +36,9 @@ export class FlorenceEraScene extends Phaser.Scene {
   private subjectText!: Phaser.GameObjects.Text;
   private roundText!: Phaser.GameObjects.Text;
   private frameX = 0;
+  /** Visual width the frame is drawn at, which may be smaller than the challenge's logical widthPx. */
+  private displayWidthPx = 0;
+  private visualScale = 1;
   private frame!: Phaser.GameObjects.Rectangle;
   private line!: Phaser.GameObjects.Graphics;
   private handle!: Phaser.GameObjects.Arc;
@@ -65,13 +70,13 @@ export class FlorenceEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Drag the focal line to the golden ratio spot on all 3 canvases.');
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 76, '', {
+    this.roundText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
-    this.subjectText = this.add.text(GAME_WIDTH / 2, 98, '', {
+    this.subjectText = this.add.text(GAME_WIDTH / 2, 98 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
@@ -116,7 +121,8 @@ export class FlorenceEraScene extends Phaser.Scene {
     skyGradient(this, theme.skyTop, theme.skyBottom);
     const ground = this.add.graphics();
     ground.fillStyle(theme.ground, 1);
-    ground.fillRect(0, 500, GAME_WIDTH, GAME_HEIGHT - 500);
+    const groundTop = GAME_HEIGHT * 0.833;
+    ground.fillRect(0, groundTop, GAME_WIDTH, GAME_HEIGHT - groundTop);
 
     // A faint decorative golden spiral in the corner for flavor.
     const spiral = this.add.graphics();
@@ -143,8 +149,10 @@ export class FlorenceEraScene extends Phaser.Scene {
     ]);
 
     this.frame?.destroy();
-    this.frameX = (GAME_WIDTH - challenge.widthPx) / 2;
-    this.frame = this.add.rectangle(GAME_WIDTH / 2, FRAME_Y + FRAME_H / 2, challenge.widthPx, FRAME_H, 0xf6ead0, 0.15)
+    this.displayWidthPx = Math.min(challenge.widthPx, MAX_FRAME_W);
+    this.visualScale = this.displayWidthPx / challenge.widthPx;
+    this.frameX = (GAME_WIDTH - this.displayWidthPx) / 2;
+    this.frame = this.add.rectangle(GAME_WIDTH / 2, FRAME_Y + FRAME_H / 2, this.displayWidthPx, FRAME_H, 0xf6ead0, 0.15)
       .setStrokeStyle(3, 0xeab676, 0.8);
 
     this.lineXWithinFrame = challenge.widthPx / 2;
@@ -153,12 +161,12 @@ export class FlorenceEraScene extends Phaser.Scene {
 
   private setLineFromX(pointerX: number): void {
     const challenge = this.canvases[this.index];
-    this.lineXWithinFrame = Phaser.Math.Clamp(pointerX - this.frameX, 0, challenge.widthPx);
+    this.lineXWithinFrame = Phaser.Math.Clamp((pointerX - this.frameX) / this.visualScale, 0, challenge.widthPx);
     this.redrawLine();
   }
 
   private redrawLine(): void {
-    const absoluteX = this.frameX + this.lineXWithinFrame;
+    const absoluteX = this.frameX + this.lineXWithinFrame * this.visualScale;
     this.handle.setX(absoluteX);
     this.line.clear();
     this.line.lineStyle(4, 0xb5422e, 0.9);
@@ -186,7 +194,7 @@ export class FlorenceEraScene extends Phaser.Scene {
     if (outcome.success) {
       sfx.success();
       this.hud.registerStreak(true);
-      burstSuccess(this, this.frameX + this.lineXWithinFrame, FRAME_Y + FRAME_H / 2, 0xb5422e);
+      burstSuccess(this, this.frameX + this.lineXWithinFrame * this.visualScale, FRAME_Y + FRAME_H / 2, 0xb5422e);
       this.index += 1;
       if (this.index >= CANVAS_COUNT) {
         this.locked = true;
@@ -198,7 +206,7 @@ export class FlorenceEraScene extends Phaser.Scene {
       sfx.error();
       this.hud.registerStreak(false);
       this.mistakes += 1;
-      burstError(this, this.frameX + this.lineXWithinFrame, FRAME_Y + FRAME_H / 2);
+      burstError(this, this.frameX + this.lineXWithinFrame * this.visualScale, FRAME_Y + FRAME_H / 2);
       showToast(this, `Off by ${outcome.diffPx.toFixed(0)}px — try to feel the balance!`, PALETTE.danger);
       const autoHint = this.hints.registerMistake();
       if (autoHint) {

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import type { EraAttemptResult, EraId } from '../core/types';
 import { ARTIFACTS, GADGET_SKINS, computeStars, recordEraCompletion } from '../core/progression';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE, fitWidth } from '../ui/theme';
 import { createButton } from '../ui/GameButton';
 import { burstConfetti, burstSuccess } from '../ui/particles';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -74,25 +74,30 @@ export class EraCompleteScene extends Phaser.Scene {
       y += 40;
     }
 
+    const panelW = fitWidth(680);
     const panel = this.add.graphics();
-    panel.fillStyle(PALETTE.panelBg, 0.9);
-    panel.fillRoundedRect(GAME_WIDTH / 2 - 340, y, 680, 220, 16);
-    panel.lineStyle(2, PALETTE.panelLine, 0.8);
-    panel.strokeRoundedRect(GAME_WIDTH / 2 - 340, y, 680, 220, 16);
 
-    this.add.text(GAME_WIDTH / 2, y + 24, `📜 What really happened: ${this.payload.fact.title}`, {
+    const titleText = this.add.text(GAME_WIDTH / 2, y + 24, `📜 What really happened: ${this.payload.fact.title}`, {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.gold,
+      align: 'center',
+      wordWrap: { width: panelW - 40 },
     }).setOrigin(0.5, 0);
 
-    this.add.text(GAME_WIDTH / 2, y + 60, this.payload.fact.body, {
+    const bodyText = this.add.text(GAME_WIDTH / 2, titleText.y + titleText.displayHeight + 14, this.payload.fact.body, {
       fontFamily: FONT_FAMILY,
-      fontSize: '15px',
+      fontSize: '16px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 620 },
+      wordWrap: { width: panelW - 60 },
     }).setOrigin(0.5, 0);
+
+    const panelH = Math.min(bodyText.y + bodyText.displayHeight + 20 - y, GAME_HEIGHT - y - 90);
+    panel.fillStyle(PALETTE.panelBg, 0.9);
+    panel.fillRoundedRect(GAME_WIDTH / 2 - panelW / 2, y, panelW, panelH, 16);
+    panel.lineStyle(2, PALETTE.panelLine, 0.8);
+    panel.strokeRoundedRect(GAME_WIDTH / 2 - panelW / 2, y, panelW, panelH, 16);
 
     createButton(this, GAME_WIDTH / 2, GAME_HEIGHT - 50, 'Back to the Rift Map', () => {
       portalOut(this, () => this.scene.start('Hub'));

@@ -7,7 +7,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, TOP_SHIFT, fitWidth } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -63,35 +63,36 @@ export class RomeEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Build the Roman numeral tiles to open all 3 locks.');
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 90, '', {
+    this.roundText = this.add.text(GAME_WIDTH / 2, 90 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
+    const panelW = fitWidth(600);
     const panel = this.add.graphics();
     panel.fillStyle(PALETTE.panelBg, 0.8);
-    panel.fillRoundedRect(GAME_WIDTH / 2 - 300, 120, 600, 150, 16);
+    panel.fillRoundedRect(GAME_WIDTH / 2 - panelW / 2, 120 + TOP_SHIFT, panelW, 150, 16);
     panel.lineStyle(2, 0xd94f3d, 0.8);
-    panel.strokeRoundedRect(GAME_WIDTH / 2 - 300, 120, 600, 150, 16);
+    panel.strokeRoundedRect(GAME_WIDTH / 2 - panelW / 2, 120 + TOP_SHIFT, panelW, 150, 16);
 
-    this.targetText = this.add.text(GAME_WIDTH / 2, 145, '', {
+    this.targetText = this.add.text(GAME_WIDTH / 2, 145 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '20px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 560 },
+      wordWrap: { width: panelW - 40 },
     }).setOrigin(0.5, 0);
 
-    this.attemptText = this.add.text(GAME_WIDTH / 2, 220, '_', {
+    this.attemptText = this.add.text(GAME_WIDTH / 2, 220 + TOP_SHIFT, '_', {
       fontFamily: FONT_FAMILY,
       fontSize: '40px',
       color: PALETTE.gold,
       letterSpacing: 6 as unknown as number,
     }).setOrigin(0.5);
 
-    createButton(this, GAME_WIDTH / 2 - 160, 300, 'Clear', () => this.clearAttempt(), { width: 140, height: 44, fontSize: 16 });
-    createButton(this, GAME_WIDTH / 2 + 160, 300, 'Open Lock', () => this.submit(), { width: 160, height: 44, fontSize: 16 });
+    createButton(this, GAME_WIDTH / 2 - (IS_PORTRAIT ? 90 : 160), 300 + TOP_SHIFT, 'Clear', () => this.clearAttempt(), { width: IS_PORTRAIT ? 130 : 140, height: 44, fontSize: 16 });
+    createButton(this, GAME_WIDTH / 2 + (IS_PORTRAIT ? 90 : 160), 300 + TOP_SHIFT, 'Open Lock', () => this.submit(), { width: IS_PORTRAIT ? 150 : 160, height: 44, fontSize: 16 });
 
     this.startRound();
     portalIn(this);
@@ -151,16 +152,19 @@ export class RomeEraScene extends Phaser.Scene {
   private drawTiles(): void {
     this.tileButtons.forEach((b) => b.destroy());
     this.tileButtons = [];
-    const spacing = 80;
-    const startX = GAME_WIDTH / 2 - (spacing * (this.puzzle.tiles.length - 1)) / 2;
+    const count = this.puzzle.tiles.length;
+    const spacing = Math.min(80, (GAME_WIDTH - 40) / Math.max(1, count - 1));
+    const tileSize = Math.max(44, Math.min(64, spacing - 6));
+    const startX = GAME_WIDTH / 2 - (spacing * (count - 1)) / 2;
+    const tilesY = 360 + TOP_SHIFT;
     this.puzzle.tiles.forEach((symbol, i) => {
       const btn = createButton(
         this,
         startX + i * spacing,
-        360,
+        tilesY,
         symbol,
         () => this.tapTile(symbol, btn),
-        { width: 64, height: 64, fontSize: 28, fillColor: 0xb8402f, hoverColor: 0xd94f3d },
+        { width: tileSize, height: tileSize, fontSize: Math.round(tileSize * 0.44), fillColor: 0xb8402f, hoverColor: 0xd94f3d },
       );
       this.tileButtons.push(btn);
     });
@@ -205,7 +209,7 @@ export class RomeEraScene extends Phaser.Scene {
     if (checkLock(this.puzzle.target, attemptStr)) {
       sfx.success();
       this.hud.registerStreak(true);
-      burstSuccess(this, GAME_WIDTH / 2, 220, 0xd94f3d);
+      burstSuccess(this, GAME_WIDTH / 2, 220 + TOP_SHIFT, 0xd94f3d);
       this.round += 1;
       if (this.round >= ROUNDS.length) {
         this.locked = true;
@@ -217,7 +221,7 @@ export class RomeEraScene extends Phaser.Scene {
       sfx.error();
       this.hud.registerStreak(false);
       this.mistakes += 1;
-      burstError(this, GAME_WIDTH / 2, 220);
+      burstError(this, GAME_WIDTH / 2, 220 + TOP_SHIFT);
       showToast(this, `That opens ${attemptStr.length ? 'a different' : 'no'} vault. Try again!`, PALETTE.danger);
       this.clearAttempt();
       const autoHint = this.hints.registerMistake();

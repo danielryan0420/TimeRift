@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createButton } from './GameButton';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from './theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE, fitWidth } from './theme';
 
 export interface ConfirmDialogOptions {
   title: string;
@@ -12,7 +12,7 @@ export interface ConfirmDialogOptions {
 
 /** A Phaser-rendered Yes/No modal, used where a destructive action needs confirmation. */
 export function showConfirmDialog(scene: Phaser.Scene, options: ConfirmDialogOptions): void {
-  const panelW = 420;
+  const panelW = fitWidth(420);
   const panelH = 220;
 
   const dim = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.65).setOrigin(0);

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import { createProfile, deleteProfile, renameProfile, selectProfile } from '../core/save';
 import { createButton } from '../ui/GameButton';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, fitWidth } from '../ui/theme';
 import { starField } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { openNameEntry } from '../ui/NameEntryOverlay';
@@ -22,8 +22,10 @@ export class ProfileSelectScene extends Phaser.Scene {
 
     this.add.text(GAME_WIDTH / 2, 60, 'Who is jumping through the rift?', {
       fontFamily: FONT_FAMILY,
-      fontSize: '28px',
+      fontSize: IS_PORTRAIT ? '22px' : '28px',
       color: PALETTE.textLight,
+      align: 'center',
+      wordWrap: { width: fitWidth(700) },
     }).setOrigin(0.5);
 
     this.renderProfiles(state);
@@ -36,24 +38,28 @@ export class ProfileSelectScene extends Phaser.Scene {
 
     const startY = 140;
     const rowHeight = 64;
+    const mainX = IS_PORTRAIT ? GAME_WIDTH / 2 - 55 : GAME_WIDTH / 2 - 100;
+    const mainW = IS_PORTRAIT ? 190 : 260;
+    const renameX = IS_PORTRAIT ? GAME_WIDTH / 2 + 95 : GAME_WIDTH / 2 + 150;
+    const deleteX = IS_PORTRAIT ? GAME_WIDTH / 2 + 155 : GAME_WIDTH / 2 + 210;
     state.save.profiles.forEach((profile, i) => {
       const y = startY + i * rowHeight;
       const row = createButton(
         this,
-        GAME_WIDTH / 2 - 100,
+        mainX,
         y,
         `${profile.name}`,
         () => {
           state.setSave(selectProfile(state.save, profile.id));
           this.scene.start('Hub');
         },
-        { width: 260, height: 52 },
+        { width: mainW, height: 52 },
       );
       row.setData('profileRow', true);
 
       const rename = createButton(
         this,
-        GAME_WIDTH / 2 + 150,
+        renameX,
         y,
         '✎',
         () => {
@@ -73,7 +79,7 @@ export class ProfileSelectScene extends Phaser.Scene {
 
       const del = createButton(
         this,
-        GAME_WIDTH / 2 + 210,
+        deleteX,
         y,
         '🗑',
         () => {

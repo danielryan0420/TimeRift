@@ -13,7 +13,7 @@ import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { drawZoneBand } from '../ui/zoneMeter';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, TOP_SHIFT, PALETTE, fitWidth } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -22,9 +22,11 @@ import type { EraCompleteData } from '../scenes/EraCompleteScene';
 
 const ATTEMPT_COUNT = 3;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 90 };
-const SLIDER_X = GAME_WIDTH / 2 - 220;
-const SLIDER_Y = 420;
-const SLIDER_W = 440;
+const SLIDER_W = IS_PORTRAIT ? GAME_WIDTH - 80 : 440;
+const SLIDER_X = GAME_WIDTH / 2 - SLIDER_W / 2;
+const SLIDER_Y = 420 + TOP_SHIFT;
+const FLYER_START_X = GAME_WIDTH / 2 - (IS_PORTRAIT ? 90 : 260);
+const FLYER_TAKEOFF_DX = IS_PORTRAIT ? 160 : 420;
 
 export class FlightEraScene extends Phaser.Scene {
   private attempts: FlightAttempt[] = [];
@@ -43,7 +45,7 @@ export class FlightEraScene extends Phaser.Scene {
   private speedText!: Phaser.GameObjects.Text;
   private sliderHandle!: Phaser.GameObjects.Arc;
   private flyer!: Phaser.GameObjects.Container;
-  private flyerBaseY = 230;
+  private flyerBaseY = 230 + TOP_SHIFT;
   private zoneBand?: Phaser.GameObjects.Rectangle;
 
   constructor() {
@@ -74,18 +76,18 @@ export class FlightEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Drag the airspeed slider so the handle sits in the green zone, 3 times. 🔬 Faster wings make more lift, but go too fast and the frame can\'t take it.');
 
-    this.attemptText = this.add.text(GAME_WIDTH / 2, 76, '', {
+    this.attemptText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '17px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 700 },
+      wordWrap: { width: fitWidth(700) },
     }).setOrigin(0.5);
 
     this.drawFlyer();
     this.drawSlider();
 
-    this.readoutText = this.add.text(GAME_WIDTH / 2, 490, '', {
+    this.readoutText = this.add.text(GAME_WIDTH / 2, 490 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
@@ -121,9 +123,10 @@ export class FlightEraScene extends Phaser.Scene {
     dunes.fillStyle(theme.ground, 1);
     dunes.beginPath();
     dunes.moveTo(0, GAME_HEIGHT);
-    dunes.lineTo(0, 520);
+    const duneTop = IS_PORTRAIT ? SLIDER_Y + 90 : 520;
+    dunes.lineTo(0, duneTop);
     for (let x = 0; x <= GAME_WIDTH; x += 30) {
-      dunes.lineTo(x, 520 + Math.sin(x * 0.015) * 14);
+      dunes.lineTo(x, duneTop + Math.sin(x * 0.015) * 14);
     }
     dunes.lineTo(GAME_WIDTH, GAME_HEIGHT);
     dunes.closePath();
@@ -131,7 +134,7 @@ export class FlightEraScene extends Phaser.Scene {
   }
 
   private drawFlyer(): void {
-    this.flyer = this.add.container(GAME_WIDTH / 2 - 260, 230);
+    this.flyer = this.add.container(FLYER_START_X, this.flyerBaseY);
     const g = this.add.graphics();
     g.fillStyle(0x4a3826, 1);
     g.fillRect(-60, -6, 120, 10);
@@ -153,7 +156,7 @@ export class FlightEraScene extends Phaser.Scene {
   }
 
   private drawSlider(): void {
-    this.add.text(GAME_WIDTH / 2, 190, 'Set the airspeed (engine throttle + headwind):', {
+    this.add.text(GAME_WIDTH / 2, 190 + TOP_SHIFT, 'Set the airspeed (engine throttle + headwind):', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
@@ -163,7 +166,7 @@ export class FlightEraScene extends Phaser.Scene {
     this.sliderHandle = this.add.circle(SLIDER_X, SLIDER_Y, 18, 0x3b5f8a).setStrokeStyle(3, 0xffffff, 0.6)
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(18, 18, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
 
-    this.speedText = this.add.text(GAME_WIDTH / 2, 365, '', { fontFamily: FONT_FAMILY, fontSize: '18px', color: PALETTE.gold }).setOrigin(0.5);
+    this.speedText = this.add.text(GAME_WIDTH / 2, 365 + TOP_SHIFT, '', { fontFamily: FONT_FAMILY, fontSize: '18px', color: PALETTE.gold }).setOrigin(0.5);
 
     this.add.text(SLIDER_X, SLIDER_Y + 30, 'Standing still', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5);
     this.add.text(SLIDER_X + SLIDER_W, SLIDER_Y + 30, 'Full throttle', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5, 0).setX(SLIDER_X + SLIDER_W - 35);
@@ -232,7 +235,7 @@ export class FlightEraScene extends Phaser.Scene {
       attempt.minSpeedMs / MAX_SLIDER_SPEED_MS,
       attempt.maxSafeSpeedMs / MAX_SLIDER_SPEED_MS,
     );
-    this.flyer.setPosition(GAME_WIDTH / 2 - 260, this.flyerBaseY).setAlpha(1).setAngle(0);
+    this.flyer.setPosition(FLYER_START_X, this.flyerBaseY).setAlpha(1).setAngle(0);
     this.startIdleBob();
     this.hints = new HintTracker([
       { level: 1, text: 'Lift grows with the square of airspeed — small speed increases matter a lot.' },
@@ -262,7 +265,7 @@ export class FlightEraScene extends Phaser.Scene {
       sfx.success();
       this.hud.registerStreak(true);
       burstSuccess(this, this.flyer.x, this.flyer.y, 0x3b5f8a);
-      this.tweens.add({ targets: this.flyer, x: this.flyer.x + 420, y: this.flyer.y - 220, angle: -12, duration: 700, ease: 'Sine.easeIn' });
+      this.tweens.add({ targets: this.flyer, x: this.flyer.x + FLYER_TAKEOFF_DX, y: this.flyer.y - 220, angle: -12, duration: 700, ease: 'Sine.easeIn' });
       this.index += 1;
       if (this.index >= ATTEMPT_COUNT) {
         this.locked = true;

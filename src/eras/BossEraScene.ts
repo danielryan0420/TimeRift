@@ -37,15 +37,18 @@ import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { drawZoneBand } from '../ui/zoneMeter';
-import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, TOP_SHIFT, PALETTE, fitWidth } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
 import { showToast } from '../ui/toast';
 
 const VILLAIN_X = GAME_WIDTH / 2;
-const VILLAIN_Y = 170;
-const PUZZLE_Y = 300;
+const VILLAIN_Y = 170 + TOP_SHIFT;
+const PUZZLE_Y = 300 + TOP_SHIFT;
+/** Round sliders (castle/industrial/moon/flight) share this narrower-on-portrait width. */
+const ROUND_SLIDER_W = IS_PORTRAIT ? GAME_WIDTH - 80 : 400;
+const ROUND_SLIDER_X = GAME_WIDTH / 2 - ROUND_SLIDER_W / 2;
 
 const ERA_LABEL: Record<string, string> = {
   egypt: 'Ancient Egypt',
@@ -102,6 +105,7 @@ export class BossEraScene extends Phaser.Scene {
   private florenceCanvas?: CanvasChallenge;
   private florenceLineX = 0;
   private florenceFrameX = 0;
+  private florenceVisualScale = 1;
   private florenceHandle?: Phaser.GameObjects.Arc;
   private florenceLine?: Phaser.GameObjects.Graphics;
   private revolutionCipher?: CipherChallenge;
@@ -154,25 +158,25 @@ export class BossEraScene extends Phaser.Scene {
     });
 
     this.bossHpBar = this.add.graphics();
-    this.heartsText = this.add.text(GAME_WIDTH / 2, 100, '', {
+    this.heartsText = this.add.text(GAME_WIDTH / 2, 100 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '20px',
     }).setOrigin(0.5);
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 222, '', {
+    this.roundText = this.add.text(GAME_WIDTH / 2, 222 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 760 },
+      wordWrap: { width: fitWidth(760) },
     }).setOrigin(0.5);
 
-    this.howToText = this.add.text(GAME_WIDTH / 2, 256, '', {
+    this.howToText = this.add.text(GAME_WIDTH / 2, 256 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '13px',
+      fontSize: '16px',
       color: PALETTE.textMuted,
       align: 'center',
-      wordWrap: { width: 700 },
+      wordWrap: { width: fitWidth(700) },
     }).setOrigin(0.5);
 
     this.puzzleLayer = this.add.container(0, 0);
@@ -200,7 +204,8 @@ export class BossEraScene extends Phaser.Scene {
     starField(this, 80);
     const ground = this.add.graphics();
     ground.fillStyle(0x0d0620, 1);
-    ground.fillRect(0, 540, GAME_WIDTH, GAME_HEIGHT - 540);
+    const groundTop = 540 + TOP_SHIFT;
+    ground.fillRect(0, groundTop, GAME_WIDTH, GAME_HEIGHT - groundTop);
   }
 
   private drawVillain(): void {
@@ -226,9 +231,9 @@ export class BossEraScene extends Phaser.Scene {
 
   private updateHpDisplays(): void {
     this.bossHpBar.clear();
-    const barW = 500;
+    const barW = fitWidth(500);
     const barX = GAME_WIDTH / 2 - barW / 2;
-    const barY = 64;
+    const barY = 64 + TOP_SHIFT;
     this.bossHpBar.fillStyle(0x3a2a40, 1);
     this.bossHpBar.fillRoundedRect(barX, barY, barW, 18, 8);
     const ratio = this.bossState.bossHp / BOSS_MAX_HP;
@@ -350,15 +355,17 @@ export class BossEraScene extends Phaser.Scene {
     this.egyptBlock = generateBlocks(1, seed)[0];
     this.hints = new HintTracker(egyptBossHints(this.egyptBlock));
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, 'Choose the right tool to break the Chronarch\'s stone shield!', {
-      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
+      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600) },
     }).setOrigin(0.5);
     this.puzzleLayer.add(text);
-    const spacing = 160;
-    const startX = GAME_WIDTH / 2 - (spacing * (TOOLS.length - 1)) / 2;
+    const n = TOOLS.length;
+    const width = IS_PORTRAIT ? Math.min(150, (GAME_WIDTH - 32 - 10 * (n - 1)) / n) : 150;
+    const spacing = width + 10;
+    const startX = GAME_WIDTH / 2 - (spacing * (n - 1)) / 2;
     TOOLS.forEach((tool, i) => {
       const btn = createButton(this, startX + i * spacing, PUZZLE_Y + 80, TOOL_INFO[tool].label, () => {
         this.resolveRound(checkAnswer(this.egyptBlock!, tool));
-      }, { width: 150, height: 56 });
+      }, { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 22 });
       this.puzzleLayer.add(btn);
     });
   }
@@ -369,15 +376,17 @@ export class BossEraScene extends Phaser.Scene {
     this.hints = new HintTracker(romeBossHints(this.romePuzzle.target));
     this.romeAttempt = [];
     const target = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, `Build the Roman numeral lock for ${this.romePuzzle.target} to pierce the shield.`, {
-      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
+      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600) },
     }).setOrigin(0.5);
     const attemptText = this.add.text(GAME_WIDTH / 2, PUZZLE_Y + 36, '_', {
       fontFamily: FONT_FAMILY, fontSize: '28px', color: PALETTE.gold,
     }).setOrigin(0.5);
     this.puzzleLayer.add([target, attemptText]);
 
-    const spacing = 70;
-    const startX = GAME_WIDTH / 2 - (spacing * (this.romePuzzle.tiles.length - 1)) / 2;
+    const count = this.romePuzzle.tiles.length;
+    const spacing = Math.min(70, (GAME_WIDTH - 40) / Math.max(1, count - 1));
+    const tileSize = Math.max(44, Math.min(56, spacing - 6));
+    const startX = GAME_WIDTH / 2 - (spacing * (count - 1)) / 2;
     this.romePuzzle.tiles.forEach((symbol, i) => {
       const btn = createButton(this, startX + i * spacing, PUZZLE_Y + 90, symbol, () => {
         if (!btn.active) return;
@@ -385,7 +394,7 @@ export class BossEraScene extends Phaser.Scene {
         btn.disableInteractive();
         btn.setAlpha(0.35);
         attemptText.setText(this.romeAttempt.join('') || '_');
-      }, { width: 56, height: 56, fontSize: 24, fillColor: 0xb8402f, hoverColor: 0xd94f3d });
+      }, { width: tileSize, height: tileSize, fontSize: Math.round(tileSize * 0.43), fillColor: 0xb8402f, hoverColor: 0xd94f3d });
       this.romeTiles.push(btn);
       this.puzzleLayer.add(btn);
     });
@@ -406,15 +415,17 @@ export class BossEraScene extends Phaser.Scene {
     this.chinaStop = generateStops(1, seed)[0];
     this.hints = new HintTracker(chinaBossHints(this.chinaStop));
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, "Give the Chronarch's caravan the good it truly demands!", {
-      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
+      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600) },
     }).setOrigin(0.5);
     this.puzzleLayer.add(text);
-    const spacing = 160;
-    const startX = GAME_WIDTH / 2 - (spacing * (GOODS.length - 1)) / 2;
+    const n = GOODS.length;
+    const width = IS_PORTRAIT ? Math.min(150, (GAME_WIDTH - 32 - 10 * (n - 1)) / n) : 150;
+    const spacing = width + 10;
+    const startX = GAME_WIDTH / 2 - (spacing * (n - 1)) / 2;
     GOODS.forEach((good, i) => {
       const btn = createButton(this, startX + i * spacing, PUZZLE_Y + 80, GOOD_INFO[good].label, () => {
         this.resolveRound(checkGood(this.chinaStop!, good));
-      }, { width: 150, height: 56 });
+      }, { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 22 });
       this.puzzleLayer.add(btn);
     });
   }
@@ -425,7 +436,7 @@ export class BossEraScene extends Phaser.Scene {
     this.hints = new HintTracker(vikingsBossHints(this.vikingsLeg));
     this.vikingsBearing = 0;
     const clue = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 10, this.vikingsLeg.clue, {
-      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
+      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600) },
     }).setOrigin(0.5);
     const dialY = PUZZLE_Y + 70;
     const ring = this.add.graphics();
@@ -483,8 +494,8 @@ export class BossEraScene extends Phaser.Scene {
       fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight,
     }).setOrigin(0.5);
 
-    const sliderX = GAME_WIDTH / 2 - 200;
-    const sliderW = 400;
+    const sliderX = ROUND_SLIDER_X;
+    const sliderW = ROUND_SLIDER_W;
     const sliderY = PUZZLE_Y + 30;
     const track = this.add.rectangle(sliderX + sliderW / 2, sliderY, sliderW, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
     this.castleHandle = this.add.circle(sliderX, sliderY, 16, 0xc77b2e).setStrokeStyle(3, 0xffffff, 0.6)
@@ -533,13 +544,16 @@ export class BossEraScene extends Phaser.Scene {
     this.florenceCanvas = generateCanvases(1, seed)[0];
     this.hints = new HintTracker(florenceBossHints(this.florenceCanvas));
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Place the focal line for ${this.florenceCanvas.subject} using the golden ratio.`, {
-      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 600 },
+      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600) },
     }).setOrigin(0.5);
 
-    this.florenceFrameX = (GAME_WIDTH - this.florenceCanvas.widthPx) / 2;
+    const maxFrameW = GAME_WIDTH - 60;
+    const displayWidthPx = Math.min(this.florenceCanvas.widthPx, maxFrameW);
+    this.florenceVisualScale = displayWidthPx / this.florenceCanvas.widthPx;
+    this.florenceFrameX = (GAME_WIDTH - displayWidthPx) / 2;
     const frameY = PUZZLE_Y;
     const frameH = 150;
-    const frame = this.add.rectangle(GAME_WIDTH / 2, frameY + frameH / 2, this.florenceCanvas.widthPx, frameH, 0xf6ead0, 0.15).setStrokeStyle(3, 0xeab676, 0.8);
+    const frame = this.add.rectangle(GAME_WIDTH / 2, frameY + frameH / 2, displayWidthPx, frameH, 0xf6ead0, 0.15).setStrokeStyle(3, 0xeab676, 0.8);
     this.florenceLine = this.add.graphics();
     this.florenceLineX = this.florenceCanvas.widthPx / 2;
     this.florenceHandle = this.add.circle(0, frameY - 14, 14, 0xb5422e).setStrokeStyle(3, 0xffffff, 0.6)
@@ -558,13 +572,13 @@ export class BossEraScene extends Phaser.Scene {
 
   private setFlorenceFromX(pointerX: number): void {
     if (!this.florenceCanvas) return;
-    this.florenceLineX = Phaser.Math.Clamp(pointerX - this.florenceFrameX, 0, this.florenceCanvas.widthPx);
+    this.florenceLineX = Phaser.Math.Clamp((pointerX - this.florenceFrameX) / this.florenceVisualScale, 0, this.florenceCanvas.widthPx);
     this.redrawFlorenceLine();
   }
 
   private redrawFlorenceLine(): void {
     if (!this.florenceLine || !this.florenceHandle) return;
-    const absoluteX = this.florenceFrameX + this.florenceLineX;
+    const absoluteX = this.florenceFrameX + this.florenceLineX * this.florenceVisualScale;
     this.florenceHandle.setX(absoluteX);
     this.florenceLine.clear();
     this.florenceLine.lineStyle(4, 0xb5422e, 0.9);
@@ -580,10 +594,10 @@ export class BossEraScene extends Phaser.Scene {
     this.hints = new HintTracker(revolutionBossHints(this.revolutionCipher));
     this.revolutionShift = 0;
     const cipherText = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, this.revolutionCipher.ciphertext, {
-      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.danger, align: 'center', wordWrap: { width: 650 },
+      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.danger, align: 'center', wordWrap: { width: fitWidth(650) },
     }).setOrigin(0.5);
     this.revolutionDecoded = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 6, '', {
-      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.success, align: 'center', wordWrap: { width: 650 },
+      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.success, align: 'center', wordWrap: { width: fitWidth(650) },
     }).setOrigin(0.5);
 
     const dialY = PUZZLE_Y + 70;
@@ -626,11 +640,11 @@ export class BossEraScene extends Phaser.Scene {
     this.hints = new HintTracker(industrialBossHints(this.industrialOrder, 20));
     this.industrialDrivenTeeth = 40;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Drive ${this.industrialOrder.machine} at ${this.industrialOrder.targetRpm} RPM (input: ${this.industrialOrder.inputRpm} RPM, drive gear: 20 teeth).`, {
-      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },
+      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(650) },
     }).setOrigin(0.5);
 
-    const sliderX = GAME_WIDTH / 2 - 200;
-    const sliderW = 400;
+    const sliderX = ROUND_SLIDER_X;
+    const sliderW = ROUND_SLIDER_W;
     const sliderY = PUZZLE_Y + 40;
     const track = this.add.rectangle(sliderX + sliderW / 2, sliderY, sliderW, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
     this.industrialHandle = this.add.circle(sliderX, sliderY, 16, 0xffd34d).setStrokeStyle(3, 0xffffff, 0.6)
@@ -680,11 +694,11 @@ export class BossEraScene extends Phaser.Scene {
     this.hints = new HintTracker(moonBossHints(MOON_MISSION));
     this.moonFuelKg = 8000;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Reach the escape velocity delta-v of ${MOON_MISSION.requiredDeltaVMs} m/s without overloading the launch frame.`, {
-      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },
+      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(650) },
     }).setOrigin(0.5);
 
-    const sliderX = GAME_WIDTH / 2 - 200;
-    const sliderW = 400;
+    const sliderX = ROUND_SLIDER_X;
+    const sliderW = ROUND_SLIDER_W;
     const sliderY = PUZZLE_Y + 40;
     const track = this.add.rectangle(sliderX + sliderW / 2, sliderY, sliderW, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
     this.moonHandle = this.add.circle(sliderX, sliderY, 16, 0xd8d8e8).setStrokeStyle(3, 0xffffff, 0.6)
@@ -734,11 +748,11 @@ export class BossEraScene extends Phaser.Scene {
     this.hints = new HintTracker(flightBossHints(this.flightAttempt));
     this.flightSpeedMs = 0;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Get the Flyer airborne in ${this.flightAttempt.windLabel} without breaking the frame.`, {
-      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: 650 },
+      fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(650) },
     }).setOrigin(0.5);
 
-    const sliderX = GAME_WIDTH / 2 - 200;
-    const sliderW = 400;
+    const sliderX = ROUND_SLIDER_X;
+    const sliderW = ROUND_SLIDER_W;
     const sliderY = PUZZLE_Y + 40;
     const track = this.add.rectangle(sliderX + sliderW / 2, sliderY, sliderW, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
     this.flightHandle = this.add.circle(sliderX, sliderY, 16, 0x3b5f8a).setStrokeStyle(3, 0xffffff, 0.6)
@@ -800,11 +814,12 @@ export class BossEraScene extends Phaser.Scene {
     this.puzzleLayer.removeAll(true);
     this.submitBtn?.destroy();
     this.submitBtn = undefined;
+    const panelW = fitWidth(520);
     const panel = this.add.graphics();
     panel.fillStyle(PALETTE.panelBg, 0.92);
-    panel.fillRoundedRect(GAME_WIDTH / 2 - 260, PUZZLE_Y - 20, 520, 160, 16);
+    panel.fillRoundedRect(GAME_WIDTH / 2 - panelW / 2, PUZZLE_Y - 20, panelW, 160, 16);
     this.add.text(GAME_WIDTH / 2, PUZZLE_Y + 10, 'The Chronarch overwhelms you this time...', {
-      fontFamily: FONT_FAMILY, fontSize: '18px', color: PALETTE.danger, align: 'center', wordWrap: { width: 460 },
+      fontFamily: FONT_FAMILY, fontSize: '18px', color: PALETTE.danger, align: 'center', wordWrap: { width: fitWidth(460) },
     }).setOrigin(0.5);
     createButton(this, GAME_WIDTH / 2, PUZZLE_Y + 90, 'Try Again', () => this.scene.restart(), { width: 220 });
   }

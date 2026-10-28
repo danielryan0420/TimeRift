@@ -18,7 +18,7 @@ import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
 import { drawZoneBand } from '../ui/zoneMeter';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE, TOP_SHIFT, fitWidth } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -29,14 +29,14 @@ const TARGET_COUNT = 3;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 100 };
 const MAX_RANGE_M = 200;
 
-const FIELD_X = 90;
-const FIELD_Y = 420;
-const FIELD_W = 760;
+const FIELD_X = IS_PORTRAIT ? 24 : 90;
+const FIELD_Y = (IS_PORTRAIT ? 260 : 420) + TOP_SHIFT;
+const FIELD_W = GAME_WIDTH - FIELD_X - (IS_PORTRAIT ? 24 : 110);
 
-const CW_SLIDER_X = GAME_WIDTH / 2 - 220;
-const CW_SLIDER_Y = 470;
-const ANGLE_SLIDER_Y = 520;
-const SLIDER_W = 440;
+const SLIDER_W = IS_PORTRAIT ? GAME_WIDTH - 100 : 440;
+const CW_SLIDER_X = IS_PORTRAIT ? (GAME_WIDTH - SLIDER_W) / 2 - 90 : GAME_WIDTH / 2 - 220;
+const CW_SLIDER_Y = (IS_PORTRAIT ? 480 : 470) + TOP_SHIFT;
+const ANGLE_SLIDER_Y = (IS_PORTRAIT ? 580 : 520) + TOP_SHIFT;
 
 export class CastleEraScene extends Phaser.Scene {
   private targets: SiegeTarget[] = [];
@@ -91,31 +91,33 @@ export class CastleEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Adjust the counterweight and angle to land inside the green zone, 3 times. 🔬 A heavier counterweight and a longer swing throw the rock farther.');
 
-    this.targetText = this.add.text(GAME_WIDTH / 2, 76, '', {
+    this.targetText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: 700 },
+      wordWrap: { width: fitWidth(700) },
     }).setOrigin(0.5);
 
     this.drawField();
 
-    this.statusText = this.add.text(GAME_WIDTH / 2, 448, '', {
+    this.statusText = this.add.text(GAME_WIDTH / 2, FIELD_Y + (IS_PORTRAIT ? 70 : 28), '', {
       fontFamily: FONT_FAMILY,
       fontSize: '20px',
       color: PALETTE.textLight,
     }).setOrigin(0.5);
 
-    this.readoutText = this.add.text(GAME_WIDTH / 2, 555, '', {
+    this.readoutText = this.add.text(GAME_WIDTH / 2, FIELD_Y + (IS_PORTRAIT ? 110 : 135), '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '15px',
+      fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
     this.drawSliders();
 
-    createButton(this, GAME_WIDTH - 110, 555, '🔥 Fire!', () => this.fire(), { width: 160, height: 44, fontSize: 18 });
+    const fireX = IS_PORTRAIT ? GAME_WIDTH / 2 : GAME_WIDTH - 110;
+    const fireY = IS_PORTRAIT ? ANGLE_SLIDER_Y + 80 : 555;
+    createButton(this, fireX, fireY, '🔥 Fire!', () => this.fire(), { width: 160, height: 44, fontSize: 18 });
 
     this.startTarget();
     portalIn(this);
@@ -143,7 +145,8 @@ export class CastleEraScene extends Phaser.Scene {
     skyGradient(this, theme.skyTop, theme.skyBottom);
     const hills = this.add.graphics();
     hills.fillStyle(theme.ground, 1);
-    hills.fillRect(0, 400, GAME_WIDTH, GAME_HEIGHT - 400);
+    const horizon = IS_PORTRAIT ? FIELD_Y + 20 : 400;
+    hills.fillRect(0, horizon, GAME_WIDTH, GAME_HEIGHT - horizon);
   }
 
   private drawField(): void {
@@ -173,20 +176,31 @@ export class CastleEraScene extends Phaser.Scene {
   }
 
   private drawSliders(): void {
-    this.add.text(CW_SLIDER_X - 10, CW_SLIDER_Y, 'Counterweight', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0, 0.5);
-    this.add.text(CW_SLIDER_X - 10, ANGLE_SLIDER_Y, 'Release Angle', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0, 0.5);
-
-    const cwTrack = this.add.rectangle(CW_SLIDER_X + 90 + SLIDER_W / 2, CW_SLIDER_Y, SLIDER_W, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
-    const angleTrack = this.add.rectangle(CW_SLIDER_X + 90 + SLIDER_W / 2, ANGLE_SLIDER_Y, SLIDER_W, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
-
     const sliderBaseX = CW_SLIDER_X + 90;
+
+    if (IS_PORTRAIT) {
+      this.add.text(sliderBaseX + SLIDER_W / 2, CW_SLIDER_Y - 36, 'Counterweight', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
+      this.add.text(sliderBaseX + SLIDER_W / 2, ANGLE_SLIDER_Y - 36, 'Release Angle', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
+    } else {
+      this.add.text(CW_SLIDER_X - 10, CW_SLIDER_Y, 'Counterweight', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0, 0.5);
+      this.add.text(CW_SLIDER_X - 10, ANGLE_SLIDER_Y, 'Release Angle', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0, 0.5);
+    }
+
+    const cwTrack = this.add.rectangle(sliderBaseX + SLIDER_W / 2, CW_SLIDER_Y, SLIDER_W, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
+    const angleTrack = this.add.rectangle(sliderBaseX + SLIDER_W / 2, ANGLE_SLIDER_Y, SLIDER_W, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
+
     this.cwHandle = this.add.circle(sliderBaseX, CW_SLIDER_Y, 16, 0xc77b2e).setStrokeStyle(3, 0xffffff, 0.6)
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(16, 16, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
     this.angleHandle = this.add.circle(sliderBaseX, ANGLE_SLIDER_Y, 16, 0x9a7b4f).setStrokeStyle(3, 0xffffff, 0.6)
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(16, 16, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
 
-    this.cwLabel = this.add.text(sliderBaseX + SLIDER_W + 60, CW_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.gold }).setOrigin(0, 0.5);
-    this.angleLabel = this.add.text(sliderBaseX + SLIDER_W + 60, ANGLE_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.gold }).setOrigin(0, 0.5);
+    if (IS_PORTRAIT) {
+      this.cwLabel = this.add.text(sliderBaseX + SLIDER_W / 2, CW_SLIDER_Y + 26, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
+      this.angleLabel = this.add.text(sliderBaseX + SLIDER_W / 2, ANGLE_SLIDER_Y + 26, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
+    } else {
+      this.cwLabel = this.add.text(sliderBaseX + SLIDER_W + 60, CW_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.gold }).setOrigin(0, 0.5);
+      this.angleLabel = this.add.text(sliderBaseX + SLIDER_W + 60, ANGLE_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.gold }).setOrigin(0, 0.5);
+    }
 
     this.cwHandle.on('pointerdown', () => { this.draggingSlider = 'cw'; });
     this.angleHandle.on('pointerdown', () => { this.draggingSlider = 'angle'; });
