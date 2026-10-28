@@ -3,7 +3,6 @@ import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import {
   evaluateShot,
   generateTargets,
-  launchSpeedMs,
   MAX_ANGLE_DEG,
   MAX_COUNTERWEIGHT_KG,
   MIN_ANGLE_DEG,
@@ -18,6 +17,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
+import { drawZoneBand } from '../ui/zoneMeter';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
@@ -52,12 +52,14 @@ export class CastleEraScene extends Phaser.Scene {
   private draggingSlider: 'cw' | 'angle' | null = null;
 
   private targetText!: Phaser.GameObjects.Text;
+  private statusText!: Phaser.GameObjects.Text;
   private readoutText!: Phaser.GameObjects.Text;
   private cwHandle!: Phaser.GameObjects.Arc;
   private angleHandle!: Phaser.GameObjects.Arc;
   private cwLabel!: Phaser.GameObjects.Text;
   private angleLabel!: Phaser.GameObjects.Text;
   private wallMarker!: Phaser.GameObjects.Rectangle;
+  private zoneBand?: Phaser.GameObjects.Rectangle;
   private projectile!: Phaser.GameObjects.Arc;
 
   constructor() {
@@ -87,7 +89,7 @@ export class CastleEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Adjust the counterweight and angle to hit all 3 targets.');
+    this.hud.setGoal('Adjust the counterweight and angle to land inside the green zone, 3 times. 🔬 A heavier counterweight and a longer swing throw the rock farther.');
 
     this.targetText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -99,10 +101,16 @@ export class CastleEraScene extends Phaser.Scene {
 
     this.drawField();
 
+    this.statusText = this.add.text(GAME_WIDTH / 2, 448, '', {
+      fontFamily: FONT_FAMILY,
+      fontSize: '20px',
+      color: PALETTE.textLight,
+    }).setOrigin(0.5);
+
     this.readoutText = this.add.text(GAME_WIDTH / 2, 555, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '17px',
-      color: PALETTE.textLight,
+      fontSize: '15px',
+      color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
     this.drawSliders();
@@ -224,12 +232,22 @@ export class CastleEraScene extends Phaser.Scene {
 
   private updateReadout(): void {
     const cfg = this.currentConfig();
-    const speed = launchSpeedMs(cfg.counterweightKg);
     const range = projectileRangeM(cfg);
     const target = this.targets[this.index];
-    const inTolerance = target ? Math.abs(range - target.targetDistanceM) <= target.toleranceM : false;
-    this.readoutText.setText(`Launch speed: ${speed.toFixed(1)} m/s   Predicted range: ${range.toFixed(0)} m`);
-    this.readoutText.setColor(inTolerance ? PALETTE.success : PALETTE.textLight);
+    if (target) {
+      const inTolerance = Math.abs(range - target.targetDistanceM) <= target.toleranceM;
+      if (inTolerance) {
+        this.statusText.setText('🎯 In the green zone!');
+        this.statusText.setColor(PALETTE.success);
+      } else if (range < target.targetDistanceM) {
+        this.statusText.setText('⬅️ Too short — add more weight or swing!');
+        this.statusText.setColor(PALETTE.danger);
+      } else {
+        this.statusText.setText('➡️ Too far — ease off the weight or swing!');
+        this.statusText.setColor(PALETTE.danger);
+      }
+    }
+    this.readoutText.setText(`Landing spot: ${range.toFixed(0)} m`);
     this.projectile.setPosition(this.metersToX(range), FIELD_Y - 10);
   }
 
@@ -237,6 +255,16 @@ export class CastleEraScene extends Phaser.Scene {
     const target = this.targets[this.index];
     this.targetText.setText(`Target ${this.index + 1} of ${TARGET_COUNT}: hit ${target.wallLabel}, ${target.targetDistanceM} m away.`);
     this.wallMarker.setX(this.metersToX(target.targetDistanceM));
+    this.zoneBand?.destroy();
+    this.zoneBand = drawZoneBand(
+      this,
+      this.metersToX(Math.max(0, target.targetDistanceM - target.toleranceM)),
+      FIELD_Y - 50,
+      this.metersToX(target.targetDistanceM + target.toleranceM) - this.metersToX(Math.max(0, target.targetDistanceM - target.toleranceM)),
+      0,
+      1,
+      110,
+    );
     this.hints = new HintTracker([
       { level: 1, text: 'A 45° release angle gives the longest range for a given counterweight.' },
       { level: 2, text: `Aim for about ${target.targetDistanceM} m of range.` },
@@ -287,7 +315,8 @@ export class CastleEraScene extends Phaser.Scene {
           this.hud.registerStreak(false);
           this.mistakes += 1;
           burstError(this, landingX, FIELD_Y - 10);
-          showToast(this, `Landed ${outcome.distanceM.toFixed(0)} m away — off by ${outcome.diffM.toFixed(0)} m!`, PALETTE.danger);
+          const missReason = outcome.tooShort ? 'Too short!' : 'Too far!';
+          showToast(this, `${missReason} Landed ${outcome.distanceM.toFixed(0)} m away.`, PALETTE.danger);
           const autoHint = this.hints.registerMistake();
           if (autoHint) {
             this.hintsUsedTotal += 1;

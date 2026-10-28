@@ -43,4 +43,23 @@ describe('siege target generation', () => {
     expect(bad.diffM).toBeGreaterThan(target.toleranceM);
     expect(bad.success).toBe(false);
   });
+
+  it('flags tooShort when the shot lands short and tooFar when it overshoots', () => {
+    const [target] = generateTargets(1, 3);
+    const short = evaluateShot(target, { counterweightKg: 500, releaseAngleDeg: 10 });
+    expect(short.distanceM).toBeLessThan(target.targetDistanceM);
+    expect(short.tooShort).toBe(true);
+    expect(short.tooFar).toBe(false);
+
+    const far = evaluateShot(target, { counterweightKg: 3000, releaseAngleDeg: 45 });
+    expect(far.distanceM).toBeGreaterThan(target.targetDistanceM);
+    expect(far.tooFar).toBe(true);
+    expect(far.tooShort).toBe(false);
+
+    const hit = evaluateShot(target, { counterweightKg: 1500, releaseAngleDeg: 45 });
+    if (hit.success) {
+      expect(hit.tooShort).toBe(false);
+      expect(hit.tooFar).toBe(false);
+    }
+  });
 });

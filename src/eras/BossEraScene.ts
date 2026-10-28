@@ -25,17 +25,18 @@ import { checkAnswer, generateBlocks, TOOL_INFO, TOOLS, type BlockChallenge } fr
 import { checkLock, generateLockPuzzle, type LockPuzzle } from '../core/puzzles/rome';
 import { checkGood, generateStops, GOOD_INFO, GOODS, type CaravanStop } from '../core/puzzles/china';
 import { evaluateLeg, generateVoyage, type VoyageLeg } from '../core/puzzles/vikings';
-import { evaluateShot, generateTargets, projectileRangeM, type SiegeTarget } from '../core/puzzles/castle';
+import { evaluateShot, generateTargets, type SiegeTarget } from '../core/puzzles/castle';
 import { evaluatePlacement, generateCanvases, type CanvasChallenge } from '../core/puzzles/florence';
 import { caesarDecode, checkShift, generateCiphers, type CipherChallenge } from '../core/puzzles/revolution';
-import { evaluateOrder, generateSolvableOrder, outputRpm, type FactoryOrder } from '../core/puzzles/industrial';
-import { deltaV, evaluateLaunch, thrustToWeightRatio } from '../core/puzzles/moon';
-import { evaluateFlight, generateAttempts, liftForceN, MAX_SLIDER_SPEED_MS, type FlightAttempt } from '../core/puzzles/flight';
+import { evaluateOrder, generateSolvableOrder, type FactoryOrder } from '../core/puzzles/industrial';
+import { evaluateLaunch } from '../core/puzzles/moon';
+import { evaluateFlight, generateAttempts, MAX_SLIDER_SPEED_MS, type FlightAttempt } from '../core/puzzles/flight';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
+import { drawZoneBand } from '../ui/zoneMeter';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
@@ -97,6 +98,7 @@ export class BossEraScene extends Phaser.Scene {
   private castleCwKg = 1500;
   private castleHandle?: Phaser.GameObjects.Arc;
   private castleReadout?: Phaser.GameObjects.Text;
+  private castleZoneBand?: Phaser.GameObjects.Rectangle;
   private florenceCanvas?: CanvasChallenge;
   private florenceLineX = 0;
   private florenceFrameX = 0;
@@ -110,13 +112,16 @@ export class BossEraScene extends Phaser.Scene {
   private industrialDrivenTeeth = 40;
   private industrialHandle?: Phaser.GameObjects.Arc;
   private industrialReadout?: Phaser.GameObjects.Text;
+  private industrialZoneBand?: Phaser.GameObjects.Rectangle;
   private moonFuelKg = 8000;
   private moonHandle?: Phaser.GameObjects.Arc;
   private moonReadout?: Phaser.GameObjects.Text;
+  private moonZoneBand?: Phaser.GameObjects.Rectangle;
   private flightAttempt?: FlightAttempt;
   private flightSpeedMs = 0;
   private flightHandle?: Phaser.GameObjects.Arc;
   private flightReadout?: Phaser.GameObjects.Text;
+  private flightZoneBand?: Phaser.GameObjects.Rectangle;
 
   // Slider/frame geometry for the currently active round (set when each round builds its layout).
   private sliderX = 0;
@@ -456,6 +461,19 @@ export class BossEraScene extends Phaser.Scene {
     this.vikingsNeedle.fillCircle(GAME_WIDTH / 2, dialY, 7);
   }
 
+  /** Scans a slider's full range at a fixed step and returns the [lo, hi] band where isHit is true, by re-using the real win condition — never a derived formula that could drift from it. */
+  private findZone(min: number, max: number, step: number, isHit: (v: number) => boolean): [number, number] | null {
+    let lo = -1;
+    let hi = -1;
+    for (let v = min; v <= max; v += step) {
+      if (isHit(v)) {
+        if (lo === -1) lo = v;
+        hi = v;
+      }
+    }
+    return lo === -1 ? null : [lo, hi];
+  }
+
   // --- Castle round: one slider (counterweight, angle fixed at BOSS_CASTLE_ANGLE_DEG). ---
   private startCastleRound(seed: number): void {
     this.castleTarget = generateTargets(1, seed)[0];
@@ -472,6 +490,12 @@ export class BossEraScene extends Phaser.Scene {
     this.castleHandle = this.add.circle(sliderX, sliderY, 16, 0xc77b2e).setStrokeStyle(3, 0xffffff, 0.6)
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(16, 16, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
     this.castleReadout = this.add.text(GAME_WIDTH / 2, sliderY + 40, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
+
+    const zone = this.findZone(500, 3000, 50, (cw) => evaluateShot(this.castleTarget!, { counterweightKg: cw, releaseAngleDeg: BOSS_CASTLE_ANGLE_DEG }).success);
+    if (zone) {
+      this.castleZoneBand = drawZoneBand(this, sliderX, sliderY, sliderW, (zone[0] - 500) / 2500, (zone[1] - 500) / 2500, 18);
+      this.puzzleLayer.add(this.castleZoneBand);
+    }
 
     this.castleHandle.on('pointerdown', () => { this.dragMode = 'castle'; });
     track.on('pointerdown', (p: Phaser.Input.Pointer) => { this.dragMode = 'castle'; this.setCastleFromX(p.x); });
@@ -494,8 +518,14 @@ export class BossEraScene extends Phaser.Scene {
   }
 
   private updateCastleReadout(): void {
-    const range = projectileRangeM({ counterweightKg: this.castleCwKg, releaseAngleDeg: BOSS_CASTLE_ANGLE_DEG });
-    this.castleReadout?.setText(`${this.castleCwKg} kg counterweight → predicted range ${range.toFixed(0)} m`);
+    const outcome = evaluateShot(this.castleTarget!, { counterweightKg: this.castleCwKg, releaseAngleDeg: BOSS_CASTLE_ANGLE_DEG });
+    if (outcome.success) {
+      this.castleReadout?.setText('🎯 In the green zone!').setColor(PALETTE.success);
+    } else if (outcome.tooShort) {
+      this.castleReadout?.setText('⬅️ Too short — add more weight.').setColor(PALETTE.danger);
+    } else {
+      this.castleReadout?.setText('➡️ Too far — ease off the weight.').setColor(PALETTE.danger);
+    }
   }
 
   // --- Florence round: drag the focal line to the golden ratio point. ---
@@ -607,6 +637,12 @@ export class BossEraScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(16, 16, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
     this.industrialReadout = this.add.text(GAME_WIDTH / 2, sliderY + 40, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
 
+    const zone = this.findZone(10, 100, 1, (driven) => evaluateOrder(this.industrialOrder!, { driveTeeth: 20, drivenTeeth: driven }).success);
+    if (zone) {
+      this.industrialZoneBand = drawZoneBand(this, sliderX, sliderY, sliderW, (zone[0] - 10) / 90, (zone[1] - 10) / 90, 18);
+      this.puzzleLayer.add(this.industrialZoneBand);
+    }
+
     this.industrialHandle.on('pointerdown', () => { this.dragMode = 'industrial'; });
     track.on('pointerdown', (p: Phaser.Input.Pointer) => { this.dragMode = 'industrial'; this.setIndustrialFromX(p.x); });
     this.puzzleLayer.add([text, track, this.industrialHandle, this.industrialReadout]);
@@ -629,8 +665,14 @@ export class BossEraScene extends Phaser.Scene {
 
   private updateIndustrialReadout(): void {
     if (!this.industrialOrder) return;
-    const rpm = outputRpm({ inputRpm: this.industrialOrder.inputRpm, driveTeeth: 20, drivenTeeth: this.industrialDrivenTeeth });
-    this.industrialReadout?.setText(`${this.industrialDrivenTeeth} driven teeth → output ${rpm.toFixed(0)} RPM`);
+    const outcome = evaluateOrder(this.industrialOrder, { driveTeeth: 20, drivenTeeth: this.industrialDrivenTeeth });
+    if (outcome.success) {
+      this.industrialReadout?.setText(`✅ Just right! (${outcome.outputRpm.toFixed(0)} RPM)`).setColor(PALETTE.success);
+    } else if (outcome.tooSlow) {
+      this.industrialReadout?.setText(`🐢 Too slow (${outcome.outputRpm.toFixed(0)} RPM) — try a smaller driven gear.`).setColor(PALETTE.danger);
+    } else {
+      this.industrialReadout?.setText(`🐇 Too fast (${outcome.outputRpm.toFixed(0)} RPM) — try a bigger driven gear.`).setColor(PALETTE.danger);
+    }
   }
 
   // --- Moon round: fuel slider (engine fixed). ---
@@ -648,6 +690,15 @@ export class BossEraScene extends Phaser.Scene {
     this.moonHandle = this.add.circle(sliderX, sliderY, 16, 0xd8d8e8).setStrokeStyle(3, 0xffffff, 0.6)
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(16, 16, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
     this.moonReadout = this.add.text(GAME_WIDTH / 2, sliderY + 40, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
+
+    const zone = this.findZone(0, MOON_MISSION.maxFuelKg, 200, (fuel) => {
+      const cfg = { thrustN: MOON_MISSION.thrustN, dryMassKg: MOON_MISSION.dryMassKg, fuelMassKg: fuel, exhaustVelocityMs: MOON_MISSION.exhaustVelocityMs };
+      return evaluateLaunch(cfg, MOON_MISSION.requiredDeltaVMs).success;
+    });
+    if (zone) {
+      this.moonZoneBand = drawZoneBand(this, sliderX, sliderY, sliderW, zone[0] / MOON_MISSION.maxFuelKg, zone[1] / MOON_MISSION.maxFuelKg, 18);
+      this.puzzleLayer.add(this.moonZoneBand);
+    }
 
     this.moonHandle.on('pointerdown', () => { this.dragMode = 'moon'; });
     track.on('pointerdown', (p: Phaser.Input.Pointer) => { this.dragMode = 'moon'; this.setMoonFromX(p.x); });
@@ -672,9 +723,9 @@ export class BossEraScene extends Phaser.Scene {
 
   private updateMoonReadout(): void {
     const cfg = { thrustN: MOON_MISSION.thrustN, dryMassKg: MOON_MISSION.dryMassKg, fuelMassKg: this.moonFuelKg, exhaustVelocityMs: MOON_MISSION.exhaustVelocityMs };
-    const twr = thrustToWeightRatio(cfg);
-    const dv = deltaV(cfg);
-    this.moonReadout?.setText(`Fuel: ${this.moonFuelKg.toLocaleString()} kg — T/W ${twr.toFixed(2)}, Δv ${Math.round(dv)} m/s`);
+    const result = evaluateLaunch(cfg, MOON_MISSION.requiredDeltaVMs);
+    const emoji = result.success ? '🚀' : result.overweight ? '🪨' : !result.liftoff ? '🪫' : '⛽';
+    this.moonReadout?.setText(`${emoji} ${result.reason}`).setColor(result.success ? PALETTE.success : PALETTE.danger);
   }
 
   // --- Flight round: airspeed slider (wing fixed). ---
@@ -693,6 +744,17 @@ export class BossEraScene extends Phaser.Scene {
     this.flightHandle = this.add.circle(sliderX, sliderY, 16, 0x3b5f8a).setStrokeStyle(3, 0xffffff, 0.6)
       .setInteractive({ useHandCursor: true, draggable: true, hitArea: new Phaser.Geom.Circle(16, 16, 24), hitAreaCallback: Phaser.Geom.Circle.Contains });
     this.flightReadout = this.add.text(GAME_WIDTH / 2, sliderY + 40, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
+
+    this.flightZoneBand = drawZoneBand(
+      this,
+      sliderX,
+      sliderY,
+      sliderW,
+      this.flightAttempt.minSpeedMs / MAX_SLIDER_SPEED_MS,
+      this.flightAttempt.maxSafeSpeedMs / MAX_SLIDER_SPEED_MS,
+      18,
+    );
+    this.puzzleLayer.add(this.flightZoneBand);
 
     this.flightHandle.on('pointerdown', () => { this.dragMode = 'flight'; });
     track.on('pointerdown', (p: Phaser.Input.Pointer) => { this.dragMode = 'flight'; this.setFlightFromX(p.x); });
@@ -716,8 +778,14 @@ export class BossEraScene extends Phaser.Scene {
 
   private updateFlightReadout(): void {
     if (!this.flightAttempt) return;
-    const liftN = liftForceN({ airspeedMs: this.flightSpeedMs, wingAreaM2: this.flightAttempt.wingAreaM2, liftCoefficient: this.flightAttempt.liftCoefficient });
-    this.flightReadout?.setText(`${this.flightSpeedMs.toFixed(1)} m/s → lift ${liftN.toFixed(0)} N (need ${this.flightAttempt.weightN.toFixed(0)} N, limit ${this.flightAttempt.maxSafeSpeedMs} m/s)`);
+    const outcome = evaluateFlight(this.flightAttempt, this.flightSpeedMs);
+    if (outcome.success) {
+      this.flightReadout?.setText('🎯 Just right!').setColor(PALETTE.success);
+    } else if (outcome.tooSlow) {
+      this.flightReadout?.setText('🐌 Too slow — not enough lift yet.').setColor(PALETTE.danger);
+    } else {
+      this.flightReadout?.setText('💨 Too fast — the frame is shaking!').setColor(PALETTE.danger);
+    }
   }
 
   private victory(): void {

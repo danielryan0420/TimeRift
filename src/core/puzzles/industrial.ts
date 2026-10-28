@@ -42,12 +42,22 @@ export interface OrderOutcome {
   outputRpm: number;
   success: boolean;
   diffRpm: number;
+  tooSlow: boolean;
+  tooFast: boolean;
 }
 
 export function evaluateOrder(order: FactoryOrder, cfg: Omit<GearConfig, 'inputRpm'>): OrderOutcome {
   const rpm = outputRpm({ ...cfg, inputRpm: order.inputRpm });
   const diffRpm = Math.abs(rpm - order.targetRpm);
-  return { orderId: order.id, outputRpm: rpm, success: diffRpm <= order.toleranceRpm, diffRpm };
+  const success = diffRpm <= order.toleranceRpm;
+  return {
+    orderId: order.id,
+    outputRpm: rpm,
+    success,
+    diffRpm,
+    tooSlow: !success && rpm < order.targetRpm,
+    tooFast: !success && rpm > order.targetRpm,
+  };
 }
 
 /** Whether some driven-gear setting in range can hit this order with a fixed drive gear. */

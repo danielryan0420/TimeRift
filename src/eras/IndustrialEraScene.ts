@@ -6,7 +6,6 @@ import {
   generateOrders,
   MAX_DRIVEN_TEETH,
   MIN_DRIVEN_TEETH,
-  outputRpm,
   type FactoryOrder,
 } from '../core/puzzles/industrial';
 import type { EraAttemptResult } from '../core/types';
@@ -15,6 +14,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
+import { drawZoneBand } from '../ui/zoneMeter';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
@@ -27,6 +27,8 @@ const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 90 };
 const SLIDER_X = GAME_WIDTH / 2 - 220;
 const SLIDER_Y = 420;
 const SLIDER_W = 440;
+const METER_Y = 480;
+const MAX_RPM_SCALE = 500;
 
 export class IndustrialEraScene extends Phaser.Scene {
   private orders: FactoryOrder[] = [];
@@ -42,12 +44,15 @@ export class IndustrialEraScene extends Phaser.Scene {
   private draggingSlider = false;
 
   private orderText!: Phaser.GameObjects.Text;
+  private statusText!: Phaser.GameObjects.Text;
   private rpmText!: Phaser.GameObjects.Text;
   private drivenText!: Phaser.GameObjects.Text;
   private sliderHandle!: Phaser.GameObjects.Arc;
   private gearButtons: Phaser.GameObjects.Container[] = [];
   private bigGear!: Phaser.GameObjects.Container;
   private smallGear!: Phaser.GameObjects.Container;
+  private rpmZoneBand?: Phaser.GameObjects.Rectangle;
+  private rpmNeedle!: Phaser.GameObjects.Triangle;
 
   constructor() {
     super('IndustrialEra');
@@ -76,7 +81,7 @@ export class IndustrialEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Set the gear ratio to hit the target RPM for all 3 factory orders.');
+    this.hud.setGoal('Drag the driven gear slider until the needle sits in the green zone, for all 3 factory orders. 🔬 A bigger gear turns slower; a smaller gear turns faster.');
 
     this.orderText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -88,11 +93,18 @@ export class IndustrialEraScene extends Phaser.Scene {
 
     this.drawGears();
     this.drawDriveButtons();
+    this.drawRpmMeter();
 
-    this.rpmText = this.add.text(GAME_WIDTH / 2, 490, '', {
+    this.statusText = this.add.text(GAME_WIDTH / 2, 508, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '19px',
+      fontSize: '18px',
       color: PALETTE.textLight,
+    }).setOrigin(0.5);
+
+    this.rpmText = this.add.text(GAME_WIDTH / 2, 532, '', {
+      fontFamily: FONT_FAMILY,
+      fontSize: '14px',
+      color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
     this.drawDrivenSlider();
@@ -182,6 +194,16 @@ export class IndustrialEraScene extends Phaser.Scene {
     this.add.text(GAME_WIDTH / 2, 220, 'Drive gear teeth:', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.textMuted }).setOrigin(0.5);
   }
 
+  private rpmToX(rpm: number): number {
+    return SLIDER_X + Phaser.Math.Clamp(rpm / MAX_RPM_SCALE, 0, 1) * SLIDER_W;
+  }
+
+  private drawRpmMeter(): void {
+    this.add.text(GAME_WIDTH / 2, METER_Y - 22, 'Output speed meter:', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5);
+    this.add.rectangle(SLIDER_X + SLIDER_W / 2, METER_Y, SLIDER_W, 14, 0x2a2a2a).setStrokeStyle(2, 0xffffff, 0.25);
+    this.rpmNeedle = this.add.triangle(SLIDER_X, METER_Y - 16, -9, 10, 9, 10, 0, -6, 0xffd34d).setStrokeStyle(1, 0xffffff, 0.8).setDepth(2);
+  }
+
   private drawDrivenSlider(): void {
     this.add.text(GAME_WIDTH / 2, 380, 'Driven gear teeth:', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.textMuted }).setOrigin(0.5);
 
@@ -222,10 +244,20 @@ export class IndustrialEraScene extends Phaser.Scene {
   private updateReadout(): void {
     const order = this.orders[this.index];
     if (!order) return;
-    const rpm = outputRpm({ inputRpm: order.inputRpm, driveTeeth: this.driveTeeth, drivenTeeth: this.drivenTeeth });
-    const inTolerance = Math.abs(rpm - order.targetRpm) <= order.toleranceRpm;
-    this.rpmText.setText(`Output: ${rpm.toFixed(0)} RPM (need ${order.targetRpm} ± ${order.toleranceRpm} RPM) ${inTolerance ? '✅' : '❌'}`);
-    this.rpmText.setColor(inTolerance ? PALETTE.success : PALETTE.danger);
+    const outcome = evaluateOrder(order, { driveTeeth: this.driveTeeth, drivenTeeth: this.drivenTeeth });
+    const rpm = outcome.outputRpm;
+    this.rpmNeedle.setX(this.rpmToX(rpm));
+    this.rpmText.setText(`${rpm.toFixed(0)} RPM`);
+    if (outcome.success) {
+      this.statusText.setText('✅ Just right!');
+      this.statusText.setColor(PALETTE.success);
+    } else if (outcome.tooSlow) {
+      this.statusText.setText('🐢 Too slow — try a smaller driven gear.');
+      this.statusText.setColor(PALETTE.danger);
+    } else {
+      this.statusText.setText('🐇 Too fast — try a bigger driven gear.');
+      this.statusText.setColor(PALETTE.danger);
+    }
 
     const speedFactor = Phaser.Math.Clamp(4000 / Math.max(rpm, 10), 400, 8000);
     this.tweens.killTweensOf(this.bigGear);
@@ -237,6 +269,16 @@ export class IndustrialEraScene extends Phaser.Scene {
   private startOrder(): void {
     const order = this.orders[this.index];
     this.orderText.setText(`Order ${this.index + 1} of ${ORDER_COUNT}: drive ${order.machine} at ${order.targetRpm} RPM (input shaft spins at ${order.inputRpm} RPM).`);
+    this.rpmZoneBand?.destroy();
+    this.rpmZoneBand = drawZoneBand(
+      this,
+      SLIDER_X,
+      METER_Y,
+      SLIDER_W,
+      Math.max(0, order.targetRpm - order.toleranceRpm) / MAX_RPM_SCALE,
+      (order.targetRpm + order.toleranceRpm) / MAX_RPM_SCALE,
+      14,
+    );
     this.hints = new HintTracker([
       { level: 1, text: 'Output RPM = input RPM × (drive teeth ÷ driven teeth). A bigger driven gear slows things down.' },
       { level: 2, text: `Try drive teeth near ${this.driveTeeth === 20 ? 30 : 20} and adjust the driven gear slider.` },
@@ -276,7 +318,8 @@ export class IndustrialEraScene extends Phaser.Scene {
       this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, GAME_WIDTH / 2, 160);
-      showToast(this, `${outcome.outputRpm.toFixed(0)} RPM is off by ${outcome.diffRpm.toFixed(0)} — adjust the gears!`, PALETTE.danger);
+      const reason = outcome.tooSlow ? 'Too slow!' : 'Too fast!';
+      showToast(this, `${reason} ${outcome.outputRpm.toFixed(0)} RPM — adjust the driven gear.`, PALETTE.danger);
       const autoHint = this.hints.registerMistake();
       if (autoHint) {
         this.hintsUsedTotal += 1;

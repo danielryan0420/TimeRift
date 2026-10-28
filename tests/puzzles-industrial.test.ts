@@ -32,6 +32,24 @@ describe('gear ratio factory floor', () => {
     const bad = evaluateOrder(order, { driveTeeth: 10, drivenTeeth: 100 });
     expect(bad.success).toBe(order.targetRpm === outputRpm({ inputRpm: order.inputRpm, driveTeeth: 10, drivenTeeth: 100 }));
   });
+
+  it('flags tooSlow when the driven gear is too big and tooFast when it is too small', () => {
+    const order = { id: 0, inputRpm: 100, targetRpm: 50, toleranceRpm: 5, machine: 'test' };
+    const slow = evaluateOrder(order, { driveTeeth: 20, drivenTeeth: 100 });
+    expect(slow.outputRpm).toBeLessThan(order.targetRpm - order.toleranceRpm);
+    expect(slow.tooSlow).toBe(true);
+    expect(slow.tooFast).toBe(false);
+
+    const fast = evaluateOrder(order, { driveTeeth: 20, drivenTeeth: 10 });
+    expect(fast.outputRpm).toBeGreaterThan(order.targetRpm + order.toleranceRpm);
+    expect(fast.tooFast).toBe(true);
+    expect(fast.tooSlow).toBe(false);
+
+    const exact = evaluateOrder(order, { driveTeeth: 20, drivenTeeth: 40 });
+    expect(exact.success).toBe(true);
+    expect(exact.tooSlow).toBe(false);
+    expect(exact.tooFast).toBe(false);
+  });
 });
 
 describe('boss trial solvability (fixed drive gear, no gear picker)', () => {

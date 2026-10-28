@@ -49,10 +49,20 @@ export interface ShotOutcome {
   distanceM: number;
   success: boolean;
   diffM: number;
+  tooShort: boolean;
+  tooFar: boolean;
 }
 
 export function evaluateShot(target: SiegeTarget, cfg: TrebuchetConfig): ShotOutcome {
   const distanceM = projectileRangeM(cfg);
   const diffM = Math.abs(distanceM - target.targetDistanceM);
-  return { targetId: target.id, distanceM, success: diffM <= target.toleranceM, diffM };
+  const success = diffM <= target.toleranceM;
+  return {
+    targetId: target.id,
+    distanceM,
+    success,
+    diffM,
+    tooShort: !success && distanceM < target.targetDistanceM,
+    tooFar: !success && distanceM > target.targetDistanceM,
+  };
 }

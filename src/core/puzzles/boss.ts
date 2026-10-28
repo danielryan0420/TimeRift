@@ -61,12 +61,12 @@ export const BOSS_ROUND_HOWTO: Record<EraId, string> = {
   rome: 'Tap numeral tiles in order, then tap Open Lock.',
   china: 'Tap the trade good the caravan is asking for.',
   vikings: 'Drag inside the dial to aim toward the clue.',
-  castle: 'Drag the slider to set the counterweight, then Fire.',
+  castle: 'Drag the slider into the green zone, then Fire.',
   florence: 'Drag the line left or right, then set the composition.',
   revolution: 'Drag inside the wheel until the green preview reads clearly.',
-  industrial: 'Drag the slider to set the driven gear, then Engage.',
-  flight: 'Drag the slider to set airspeed, then Take Off.',
-  moon: 'Drag the slider to set fuel, then Launch.',
+  industrial: 'Drag the slider into the green zone, then Engage.',
+  flight: 'Drag the slider into the green zone, then Take Off.',
+  moon: 'Drag the slider into the green zone, then Launch.',
 };
 
 /** The current objective for the HUD goal banner, specific to whichever trial is active. */
@@ -75,12 +75,12 @@ export const BOSS_ROUND_GOAL: Record<EraId, string> = {
   rome: 'Build the Roman numeral lock, then open it.',
   china: 'Load the trade good this merchant demands.',
   vikings: 'Steer to the bearing Polaris points out.',
-  castle: 'Set the counterweight to hit the target.',
+  castle: 'Drag into the green zone to hit the target.',
   florence: 'Drag the focal line to the golden ratio spot.',
   revolution: 'Rotate the wheel to decode the message.',
-  industrial: 'Set the driven gear to hit the target RPM.',
-  flight: 'Set a safe airspeed that gives enough lift.',
-  moon: 'Set the fuel load to reach escape velocity safely.',
+  industrial: 'Drag into the green zone to hit the target RPM.',
+  flight: 'Drag into the green zone for a safe takeoff.',
+  moon: 'Drag into the green zone to reach escape velocity safely.',
 };
 
 const BOSS_EGYPT_SITUATION_HINT: Record<BlockSituation, string> = {

@@ -3,7 +3,6 @@ import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import {
   evaluateFlight,
   generateAttempts,
-  liftForceN,
   MAX_SLIDER_SPEED_MS,
   type FlightAttempt,
 } from '../core/puzzles/flight';
@@ -13,6 +12,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
+import { drawZoneBand } from '../ui/zoneMeter';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
@@ -43,6 +43,8 @@ export class FlightEraScene extends Phaser.Scene {
   private speedText!: Phaser.GameObjects.Text;
   private sliderHandle!: Phaser.GameObjects.Arc;
   private flyer!: Phaser.GameObjects.Container;
+  private flyerBaseY = 230;
+  private zoneBand?: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super('FlightEra');
@@ -70,7 +72,7 @@ export class FlightEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Set an airspeed that gives enough lift without breaking the frame, 3 times.');
+    this.hud.setGoal('Drag the airspeed slider so the handle sits in the green zone, 3 times. 🔬 Faster wings make more lift, but go too fast and the frame can\'t take it.');
 
     this.attemptText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -142,7 +144,12 @@ export class FlightEraScene extends Phaser.Scene {
     g.fillStyle(0x2a2a2a, 1);
     g.fillCircle(66, -36, 10);
     this.flyer.add(g);
-    this.tweens.add({ targets: this.flyer, y: 222, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.startIdleBob();
+  }
+
+  private startIdleBob(): void {
+    this.tweens.killTweensOf(this.flyer);
+    this.tweens.add({ targets: this.flyer, y: this.flyerBaseY - 8, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
 
   private drawSlider(): void {
@@ -196,13 +203,17 @@ export class FlightEraScene extends Phaser.Scene {
   private updateReadout(): void {
     const attempt = this.currentAttempt();
     if (!attempt) return;
-    const liftN = liftForceN({ airspeedMs: this.airspeedMs, wingAreaM2: attempt.wingAreaM2, liftCoefficient: attempt.liftCoefficient });
-    const liftOk = liftN >= attempt.weightN;
-    const speedOk = this.airspeedMs <= attempt.maxSafeSpeedMs;
-    this.readoutText.setText(
-      `Lift: ${liftN.toFixed(0)} N (need ${attempt.weightN.toFixed(0)} N) ${liftOk ? '✅' : '❌'}  |  Frame limit: ${attempt.maxSafeSpeedMs} m/s ${speedOk ? '✅' : '❌'}`,
-    );
-    this.readoutText.setColor(liftOk && speedOk ? PALETTE.success : PALETTE.danger);
+    const outcome = evaluateFlight(attempt, this.airspeedMs);
+    if (outcome.success) {
+      this.readoutText.setText('🎯 Just right!');
+      this.readoutText.setColor(PALETTE.success);
+    } else if (outcome.tooSlow) {
+      this.readoutText.setText('🐌 Too slow — not enough lift yet.');
+      this.readoutText.setColor(PALETTE.danger);
+    } else {
+      this.readoutText.setText('💨 Too fast — the frame is shaking!');
+      this.readoutText.setColor(PALETTE.danger);
+    }
   }
 
   private startAttempt(): void {
@@ -212,6 +223,17 @@ export class FlightEraScene extends Phaser.Scene {
     this.attemptText.setText(
       `Attempt ${this.index + 1} of ${ATTEMPT_COUNT}: ${attempt.windLabel}. Get enough lift without overstressing the frame.`,
     );
+    this.zoneBand?.destroy();
+    this.zoneBand = drawZoneBand(
+      this,
+      SLIDER_X,
+      SLIDER_Y,
+      SLIDER_W,
+      attempt.minSpeedMs / MAX_SLIDER_SPEED_MS,
+      attempt.maxSafeSpeedMs / MAX_SLIDER_SPEED_MS,
+    );
+    this.flyer.setPosition(GAME_WIDTH / 2 - 260, this.flyerBaseY).setAlpha(1).setAngle(0);
+    this.startIdleBob();
     this.hints = new HintTracker([
       { level: 1, text: 'Lift grows with the square of airspeed — small speed increases matter a lot.' },
       { level: 2, text: `Try somewhere between ${attempt.minSpeedMs} and ${attempt.maxSafeSpeedMs} m/s.` },
@@ -235,23 +257,30 @@ export class FlightEraScene extends Phaser.Scene {
     const attempt = this.currentAttempt();
     const outcome = evaluateFlight(attempt, this.airspeedMs);
 
+    this.tweens.killTweensOf(this.flyer);
     if (outcome.success) {
       sfx.success();
       this.hud.registerStreak(true);
       burstSuccess(this, this.flyer.x, this.flyer.y, 0x3b5f8a);
+      this.tweens.add({ targets: this.flyer, x: this.flyer.x + 420, y: this.flyer.y - 220, angle: -12, duration: 700, ease: 'Sine.easeIn' });
       this.index += 1;
       if (this.index >= ATTEMPT_COUNT) {
         this.locked = true;
-        this.time.delayedCall(500, () => this.finish());
+        this.time.delayedCall(700, () => this.finish());
       } else {
-        this.time.delayedCall(500, () => this.startAttempt());
+        this.time.delayedCall(700, () => this.startAttempt());
       }
     } else {
       sfx.error();
       this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, this.flyer.x, this.flyer.y);
-      const reason = outcome.tooSlow ? "Not enough lift — the Flyer won't leave the ground." : 'Too fast — the wood-and-fabric frame is shaking apart!';
+      if (outcome.tooSlow) {
+        this.tweens.add({ targets: this.flyer, y: this.flyerBaseY + 6, duration: 90, yoyo: true, repeat: 2, onComplete: () => this.startIdleBob() });
+      } else {
+        this.tweens.add({ targets: this.flyer, angle: { from: -4, to: 4 }, x: { from: this.flyer.x - 4, to: this.flyer.x + 4 }, duration: 60, yoyo: true, repeat: 6, onComplete: () => this.startIdleBob() });
+      }
+      const reason = outcome.tooSlow ? "Too slow! The Flyer won't leave the ground." : 'Too fast! The wood-and-fabric frame is shaking apart!';
       showToast(this, reason, PALETTE.danger);
       const autoHint = this.hints.registerMistake();
       if (autoHint) {

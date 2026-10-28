@@ -4,9 +4,11 @@ import {
   deltaV,
   evaluateLaunch,
   thrustToWeightRatio,
+  totalMass,
   ENGINES,
   EXHAUST_VELOCITY_MS,
   MAX_FUEL_KG,
+  MAX_STRUCTURAL_MASS_KG,
   MISSIONS,
   type RocketConfig,
 } from '../core/puzzles/moon';
@@ -16,6 +18,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
+import { drawThresholdTick } from '../ui/zoneMeter';
 import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../ui/theme';
 import { skyGradient, starField } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
@@ -31,6 +34,17 @@ const SLIDER_X = GAME_WIDTH / 2 - 220;
 const SLIDER_Y = 420;
 const SLIDER_W = 440;
 
+const ROCKET_X = 150;
+const ROCKET_BASE_Y = 460;
+const BAR_X = GAME_WIDTH / 2 - 160;
+const BAR_W = 320;
+const PUSH_BAR_Y = 470;
+const FUEL_BAR_Y = 505;
+const MAX_TWR_SCALE = 3;
+const MAX_DV_SCALE = 6000;
+const COLOR_SUCCESS = 0x5ee37a;
+const COLOR_DANGER = 0xff6b6b;
+
 export class MoonEraScene extends Phaser.Scene {
   private missionIndex = 0;
   private fuelMassKg = 8000;
@@ -44,11 +58,14 @@ export class MoonEraScene extends Phaser.Scene {
   private draggingSlider = false;
 
   private missionText!: Phaser.GameObjects.Text;
-  private twrText!: Phaser.GameObjects.Text;
-  private deltaVText!: Phaser.GameObjects.Text;
+  private statusText!: Phaser.GameObjects.Text;
   private fuelText!: Phaser.GameObjects.Text;
   private sliderHandle!: Phaser.GameObjects.Arc;
   private engineButtons: Phaser.GameObjects.Container[] = [];
+  private rocket!: Phaser.GameObjects.Container;
+  private pushFill!: Phaser.GameObjects.Rectangle;
+  private fuelFill!: Phaser.GameObjects.Rectangle;
+  private fuelTick?: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super('MoonEra');
@@ -76,7 +93,7 @@ export class MoonEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Pick an engine and fuel load to complete all 3 launch missions.');
+    this.hud.setGoal('Pick an engine and fuel load to light up both gauges green, 3 times. 🔬 More fuel adds push time, but it also adds weight to lift.');
 
     this.missionText = this.add.text(GAME_WIDTH / 2, 76, '', {
       fontFamily: FONT_FAMILY,
@@ -86,17 +103,14 @@ export class MoonEraScene extends Phaser.Scene {
       wordWrap: { width: 640 },
     }).setOrigin(0.5);
 
+    this.drawRocket();
     this.drawEngineButtons();
     this.drawFuelSlider();
+    this.drawGauges();
 
-    this.twrText = this.add.text(GAME_WIDTH / 2, 490, '', {
+    this.statusText = this.add.text(GAME_WIDTH / 2, 522, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '18px',
-      color: PALETTE.textLight,
-    }).setOrigin(0.5);
-    this.deltaVText = this.add.text(GAME_WIDTH / 2, 515, '', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '18px',
+      fontSize: '17px',
       color: PALETTE.textLight,
     }).setOrigin(0.5);
 
@@ -134,6 +148,32 @@ export class MoonEraScene extends Phaser.Scene {
       ground.fillStyle(0x6a6a7a, 0.6);
       ground.fillCircle(80 + i * 120, GAME_HEIGHT - 40 + (i % 2) * 10, 14);
     }
+  }
+
+  private drawRocket(): void {
+    this.rocket = this.add.container(ROCKET_X, ROCKET_BASE_Y);
+    const g = this.add.graphics();
+    g.fillStyle(0xd8d8e8, 1);
+    g.fillRect(-16, -110, 32, 100);
+    g.fillStyle(0xff6b6b, 1);
+    g.fillTriangle(-16, -110, 16, -110, 0, -140);
+    g.fillStyle(0x9a7b4f, 1);
+    g.fillTriangle(-16, -16, -16, -46, -34, -16);
+    g.fillTriangle(16, -16, 16, -46, 34, -16);
+    g.fillStyle(0x3b5f8a, 1);
+    g.fillCircle(0, -70, 9);
+    this.rocket.add(g);
+  }
+
+  private drawGauges(): void {
+    this.add.text(BAR_X - 10, PUSH_BAR_Y, 'Push', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
+    this.add.rectangle(BAR_X + BAR_W / 2, PUSH_BAR_Y, BAR_W, 14, 0x2a2a2a).setStrokeStyle(2, 0xffffff, 0.25);
+    this.pushFill = this.add.rectangle(BAR_X, PUSH_BAR_Y, 2, 10, COLOR_DANGER).setOrigin(0, 0.5);
+    drawThresholdTick(this, BAR_X, PUSH_BAR_Y, BAR_W, 1 / MAX_TWR_SCALE, 22);
+
+    this.add.text(BAR_X - 10, FUEL_BAR_Y, 'Fuel reach', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
+    this.add.rectangle(BAR_X + BAR_W / 2, FUEL_BAR_Y, BAR_W, 14, 0x2a2a2a).setStrokeStyle(2, 0xffffff, 0.25);
+    this.fuelFill = this.add.rectangle(BAR_X, FUEL_BAR_Y, 2, 10, COLOR_DANGER).setOrigin(0, 0.5);
   }
 
   private drawEngineButtons(): void {
@@ -227,15 +267,37 @@ export class MoonEraScene extends Phaser.Scene {
     const twr = thrustToWeightRatio(cfg);
     const dv = deltaV(cfg);
     const required = MISSIONS[this.missionIndex].requiredDeltaVMs;
-    this.twrText.setText(`Thrust/Weight: ${twr.toFixed(2)} ${twr > 1 ? '✅ liftoff' : '❌ too heavy'}`);
-    this.twrText.setColor(twr > 1 ? PALETTE.success : PALETTE.danger);
-    this.deltaVText.setText(`Delta-V: ${Math.round(dv)} m/s (need ${required} m/s) ${dv >= required ? '✅' : '❌'}`);
-    this.deltaVText.setColor(dv >= required ? PALETTE.success : PALETTE.danger);
+    const overweight = totalMass(cfg) > MAX_STRUCTURAL_MASS_KG;
+
+    const twrRatio = Phaser.Math.Clamp(twr / MAX_TWR_SCALE, 0, 1);
+    this.pushFill.setSize(Math.max(2, twrRatio * BAR_W), 10);
+    this.pushFill.setFillStyle(twr > 1 && !overweight ? COLOR_SUCCESS : COLOR_DANGER);
+
+    const dvRatio = Phaser.Math.Clamp(dv / MAX_DV_SCALE, 0, 1);
+    this.fuelFill.setSize(Math.max(2, dvRatio * BAR_W), 10);
+    this.fuelFill.setFillStyle(dv >= required ? COLOR_SUCCESS : COLOR_DANGER);
+
+    if (overweight) {
+      this.statusText.setText('🪨 Too heavy for the launch frame — use less fuel.');
+      this.statusText.setColor(PALETTE.danger);
+    } else if (twr <= 1) {
+      this.statusText.setText('🪫 Not enough push to lift off — try a bigger engine.');
+      this.statusText.setColor(PALETTE.danger);
+    } else if (dv < required) {
+      this.statusText.setText('⛽ Good push, but not enough fuel to reach the Moon.');
+      this.statusText.setColor(PALETTE.danger);
+    } else {
+      this.statusText.setText('🚀 Ready for liftoff!');
+      this.statusText.setColor(PALETTE.success);
+    }
   }
 
   private startMission(): void {
     const mission = MISSIONS[this.missionIndex];
     this.missionText.setText(`Mission ${this.missionIndex + 1} of ${MISSIONS.length}: ${mission.label}\nNeed Delta-V ≥ ${mission.requiredDeltaVMs} m/s with Thrust/Weight > 1.`);
+    this.rocket.setPosition(ROCKET_X, ROCKET_BASE_Y).setAngle(0).setAlpha(1);
+    this.fuelTick?.destroy();
+    this.fuelTick = drawThresholdTick(this, BAR_X, FUEL_BAR_Y, BAR_W, mission.requiredDeltaVMs / MAX_DV_SCALE, 22);
     this.updateReadouts();
     this.hints = new HintTracker([
       { level: 1, text: 'More fuel adds delta-v, but also adds weight — it can tip the thrust/weight ratio below 1!' },
@@ -260,22 +322,37 @@ export class MoonEraScene extends Phaser.Scene {
     const mission = MISSIONS[this.missionIndex];
     const result = evaluateLaunch(cfg, mission.requiredDeltaVMs);
 
+    this.tweens.killTweensOf(this.rocket);
     if (result.success) {
       sfx.success();
       this.hud.registerStreak(true);
-      burstSuccess(this, GAME_WIDTH / 2, GAME_HEIGHT - 120, 0xd8d8e8);
+      burstSuccess(this, this.rocket.x, this.rocket.y - 30, 0xd8d8e8);
+      this.tweens.add({ targets: this.rocket, y: ROCKET_BASE_Y - 480, duration: 900, ease: 'Cubic.easeIn' });
       this.missionIndex += 1;
       if (this.missionIndex >= MISSIONS.length) {
         this.locked = true;
-        this.time.delayedCall(600, () => this.finish());
+        this.time.delayedCall(900, () => this.finish());
       } else {
-        this.time.delayedCall(500, () => this.startMission());
+        this.time.delayedCall(900, () => this.startMission());
       }
     } else {
       sfx.error();
       this.hud.registerStreak(false);
       this.mistakes += 1;
-      burstError(this, GAME_WIDTH / 2, GAME_HEIGHT - 120);
+      if (result.liftoff) {
+        this.tweens.add({
+          targets: this.rocket,
+          y: ROCKET_BASE_Y - 130,
+          duration: 350,
+          ease: 'Sine.easeOut',
+          yoyo: true,
+          hold: 150,
+          onComplete: () => burstError(this, this.rocket.x, this.rocket.y),
+        });
+      } else {
+        burstError(this, this.rocket.x, this.rocket.y - 60);
+        this.tweens.add({ targets: this.rocket, x: { from: ROCKET_X - 5, to: ROCKET_X + 5 }, duration: 60, yoyo: true, repeat: 6, onComplete: () => this.rocket.setX(ROCKET_X) });
+      }
       showToast(this, result.reason, PALETTE.danger);
       const autoHint = this.hints.registerMistake();
       if (autoHint) {
