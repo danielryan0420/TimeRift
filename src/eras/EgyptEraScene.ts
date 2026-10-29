@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { generateBlocks, checkAnswer, TOOL_INFO, TOOLS, type Tool, type BlockChallenge } from '../core/puzzles/egypt';
+import { egyptHints, generateBlocks, checkAnswer, LEARN_GOAL, TOOL_INFO, TOOLS, type Tool, type BlockChallenge } from '../core/puzzles/egypt';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EGYPT_TUTORIAL_STEPS, isTutorialPending } from '../core/onboarding';
@@ -20,14 +20,6 @@ const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 75 };
 
 function situationText(block: BlockChallenge): string {
   return `This block weighs ${block.weightKg} kg and must move ${block.distanceM} m to its spot.`;
-}
-
-/** Nudges the player toward the reasoning (distance first, then weight) without giving the tool away. */
-function situationHint(block: BlockChallenge): string {
-  if (block.distanceM > 40) return 'That is a long haul — think about cutting friction on the sand...';
-  if (block.weightKg > 900) return 'That is very heavy for a short move — think about mechanical advantage...';
-  if (block.weightKg > 500) return 'Medium weight, short move — think about something short you can pry with...';
-  return 'Light enough for a short move — the simplest drag will do...';
 }
 
 export class EgyptEraScene extends Phaser.Scene {
@@ -103,6 +95,7 @@ export class EgyptEraScene extends Phaser.Scene {
     }
     showHowToPlayCard(this, {
       title: 'Raise the Pyramid',
+      learnGoal: LEARN_GOAL,
       line: 'Pick the right tool to move each block! Read the situation, then tap a tool below.',
       quiz: {
         question: 'Quick check: which tool is best for prying a block in a tight gap?',
@@ -207,10 +200,7 @@ export class EgyptEraScene extends Phaser.Scene {
   private showCurrentBlock(): void {
     const block = this.blocks[this.index];
     this.situationText.setText(`Block ${this.index + 1} of ${TOTAL_BLOCKS}: ${situationText(block)}`);
-    this.hints = new HintTracker([
-      { level: 1, text: situationHint(block) },
-      { level: 2, text: `Use the ${TOOL_INFO[block.correctTool].label}!` },
-    ]);
+    this.hints = new HintTracker(egyptHints(block));
   }
 
   private showHint(): void {

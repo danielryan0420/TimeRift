@@ -2,10 +2,12 @@ import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import {
   checkGood,
+  chinaHints,
   generateStops,
   GOOD_INFO,
   GOOD_STATS,
   GOODS,
+  LEARN_GOAL,
   type CaravanStop,
   type Good,
 } from '../core/puzzles/china';
@@ -27,15 +29,6 @@ const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 75 };
 
 function requestText(stop: CaravanStop): string {
   return `Needs cargo under ${stop.maxWeightKg} kg per bundle, worth ${stop.minValueSilver}+ silver.`;
-}
-
-/** Points at the reasoning (check weight, then value, against the reference table) without naming the good. */
-function requestHint(stop: CaravanStop): string {
-  const tooHeavy = GOODS.filter((g) => GOOD_STATS[g].weightKg > stop.maxWeightKg);
-  if (tooHeavy.length > 0) {
-    return `${tooHeavy.map((g) => GOOD_INFO[g].label).join(' and ')} ${tooHeavy.length > 1 ? 'are' : 'is'} too heavy for this bundle limit — check the reference table.`;
-  }
-  return 'Check which good is valuable enough to meet the silver price — look at the reference table.';
 }
 
 const STATS_REFERENCE = GOODS.map((g) => `${GOOD_INFO[g].label} ${GOOD_STATS[g].weightKg}kg/${GOOD_STATS[g].valueSilver}💰`).join('   •   ');
@@ -117,6 +110,7 @@ export class ChinaEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'The Silk Road Caravan',
+      learnGoal: LEARN_GOAL,
       line: `Each merchant states a weight limit and a minimum price in silver. Check the reference table (${STATS_REFERENCE}) and tap the one good that fits both.`,
       quiz: {
         question: 'Quick check: a merchant needs cargo under 2 kg that is worth at least 10 silver. Which good fits?',
@@ -204,10 +198,7 @@ export class ChinaEraScene extends Phaser.Scene {
   private showCurrentStop(): void {
     const stop = this.stops[this.index];
     this.requestText.setText(`Stop ${this.index + 1} of ${TOTAL_STOPS}: ${requestText(stop)}`);
-    this.hints = new HintTracker([
-      { level: 1, text: requestHint(stop) },
-      { level: 2, text: `Offer the ${GOOD_INFO[stop.correctGood].label}!` },
-    ]);
+    this.hints = new HintTracker(chinaHints(stop));
   }
 
   private showHint(): void {

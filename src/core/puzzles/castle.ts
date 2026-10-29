@@ -1,4 +1,8 @@
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Projectile motion: how launch angle and stored energy (counterweight) trade off to control how far something flies.';
 
 /** Simplified trebuchet physics: counterweight falls, swings an arm, slings a projectile. */
 export const GRAVITY_MS2 = 9.81;
@@ -65,4 +69,21 @@ export function evaluateShot(target: SiegeTarget, cfg: TrebuchetConfig): ShotOut
     tooShort: !success && distanceM < target.targetDistanceM,
     tooFar: !success && distanceM > target.targetDistanceM,
   };
+}
+
+/** The counterweight that lands closest to the target distance at a 45° release angle (inverting projectileRangeM/launchSpeedMs). */
+function counterweightFor45(targetDistanceM: number): number {
+  const v = Math.sqrt(targetDistanceM * GRAVITY_MS2);
+  const exact = Math.max(MIN_COUNTERWEIGHT_KG, Math.min(MAX_COUNTERWEIGHT_KG, (v / 1.2) ** 2));
+  return Math.round(exact / 50) * 50;
+}
+
+/** Tier 1: a conceptual nudge about the angle. Tier 2: a counterweight range around the ideal. Tier 3: the exact counterweight worked out for this target. */
+export function castleHints(target: SiegeTarget): HintDef[] {
+  const exact = counterweightFor45(target.targetDistanceM);
+  return [
+    { level: 1, text: 'A 45° release angle gives the longest range for a given counterweight — heavier counterweights fling the stone farther.' },
+    { level: 2, text: `At 45°, try a counterweight somewhere around ${Math.max(MIN_COUNTERWEIGHT_KG, exact - 300)}-${Math.min(MAX_COUNTERWEIGHT_KG, exact + 300)} kg.` },
+    { level: 3, text: `At 45°, about ${exact} kg of counterweight should land right around ${target.targetDistanceM} m.` },
+  ];
 }

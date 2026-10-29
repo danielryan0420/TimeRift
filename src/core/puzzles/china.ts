@@ -1,4 +1,8 @@
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Trade math: comparing a weight limit and a price floor against a reference table to find the one good that satisfies both.';
 
 /** Real goods that moved west along the Silk Road out of Han-dynasty China. */
 export type Good = 'silk' | 'paper' | 'tea' | 'porcelain';
@@ -64,4 +68,26 @@ export function generateStops(count: number, seed: number): CaravanStop[] {
 
 export function checkGood(stop: CaravanStop, chosenGood: Good): boolean {
   return stop.correctGood === chosenGood;
+}
+
+/** Points at the reasoning (check weight, then value, against the reference table) without naming the good. */
+export function conceptHint(stop: CaravanStop): string {
+  const tooHeavy = GOODS.filter((g) => GOOD_STATS[g].weightKg > stop.maxWeightKg);
+  if (tooHeavy.length > 0) {
+    return `${tooHeavy.map((g) => GOOD_INFO[g].label).join(' and ')} ${tooHeavy.length > 1 ? 'are' : 'is'} too heavy for this bundle limit — check the reference table.`;
+  }
+  return 'Check which good is valuable enough to meet the silver price — look at the reference table.';
+}
+
+/** Tier 1: a conceptual nudge. Tier 2: the full reference table plus this stop's two numbers. Tier 3: the single good that passes both tests. */
+export function chinaHints(stop: CaravanStop): HintDef[] {
+  const table = GOODS.map((g) => `${GOOD_INFO[g].label} ${GOOD_STATS[g].weightKg}kg/${GOOD_STATS[g].valueSilver}💰`).join(', ');
+  return [
+    { level: 1, text: conceptHint(stop) },
+    { level: 2, text: `Compare each good — ${table} — against your limits: ≤${stop.maxWeightKg}kg AND ≥${stop.minValueSilver}💰 silver.` },
+    {
+      level: 3,
+      text: `Only the ${GOOD_INFO[stop.correctGood].label} (${GOOD_STATS[stop.correctGood].weightKg}kg, ${GOOD_STATS[stop.correctGood].valueSilver}💰) is light enough and worth enough — offer the ${GOOD_INFO[stop.correctGood].label}!`,
+    },
+  ];
 }

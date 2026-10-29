@@ -1,4 +1,8 @@
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Gear ratios: output speed = input speed × (drive teeth ÷ driven teeth) — a direct application of ratios.';
 
 /** A drive gear turning a driven gear: output RPM scales by the teeth ratio. */
 export interface GearConfig {
@@ -71,6 +75,30 @@ export function isOrderSolvable(
     if (evaluateOrder(order, { driveTeeth, drivenTeeth: driven }).success) return true;
   }
   return false;
+}
+
+/** Searches the full driven-gear range for the setting closest to the order's target RPM. */
+export function bestDrivenTeeth(order: FactoryOrder, driveTeeth: number): number {
+  let best = MIN_DRIVEN_TEETH;
+  let bestDiff = Infinity;
+  for (let driven = MIN_DRIVEN_TEETH; driven <= MAX_DRIVEN_TEETH; driven++) {
+    const diff = Math.abs(outputRpm({ inputRpm: order.inputRpm, driveTeeth, drivenTeeth: driven }) - order.targetRpm);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = driven;
+    }
+  }
+  return best;
+}
+
+/** Tier 1: the ratio formula. Tier 2: a rough driven-teeth estimate from that formula. Tier 3: the exact closest driven-teeth setting. */
+export function industrialHints(order: FactoryOrder, driveTeeth: number): HintDef[] {
+  const roughEstimate = Math.round((order.inputRpm * driveTeeth) / order.targetRpm);
+  return [
+    { level: 1, text: 'Output RPM = input RPM × (drive teeth ÷ driven teeth). A bigger driven gear slows things down.' },
+    { level: 2, text: `With ${driveTeeth} drive teeth, you want roughly driven teeth = (input × drive) ÷ target ≈ ${roughEstimate}.` },
+    { level: 3, text: `Try exactly ${bestDrivenTeeth(order, driveTeeth)} driven teeth with ${driveTeeth} drive teeth.` },
+  ];
 }
 
 /**

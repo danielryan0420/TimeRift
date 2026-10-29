@@ -4,6 +4,8 @@ import {
   DRIVE_TEETH_OPTIONS,
   evaluateOrder,
   generateOrders,
+  industrialHints,
+  LEARN_GOAL,
   MAX_DRIVEN_TEETH,
   MIN_DRIVEN_TEETH,
   type FactoryOrder,
@@ -121,6 +123,7 @@ export class IndustrialEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Set the Gear Ratio',
+      learnGoal: LEARN_GOAL,
       line: 'Pick the drive gear teeth count and drag the driven gear slider until the output RPM (how fast the machine spins) matches the target, then tap Engage!',
       quiz: {
         question: 'Quick check: if you make the driven gear bigger (more teeth), what happens to the output speed?',
@@ -282,10 +285,7 @@ export class IndustrialEraScene extends Phaser.Scene {
       (order.targetRpm + order.toleranceRpm) / MAX_RPM_SCALE,
       14,
     );
-    this.hints = new HintTracker([
-      { level: 1, text: 'Output RPM = input RPM × (drive teeth ÷ driven teeth). A bigger driven gear slows things down.' },
-      { level: 2, text: `Try drive teeth near ${this.driveTeeth === 20 ? 30 : 20} and adjust the driven gear slider.` },
-    ]);
+    this.hints = new HintTracker(industrialHints(order, this.driveTeeth));
     this.updateReadout();
   }
 

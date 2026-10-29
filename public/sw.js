@@ -1,4 +1,4 @@
-const CACHE_NAME = 'timerift-cache-v6';
+const CACHE_NAME = 'timerift-cache-v7';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());

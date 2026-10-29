@@ -710,7 +710,7 @@ export class BossEraScene extends Phaser.Scene {
 
   // --- Moon round: fuel slider (engine fixed). ---
   private startMoonRound(): void {
-    this.hints = new HintTracker(moonBossHints(MOON_MISSION));
+    this.hints = new HintTracker(moonBossHints(MOON_MISSION, { label: 'Medium' }));
     this.moonFuelKg = 8000;
     const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y - 30, `Reach the escape velocity delta-v of ${MOON_MISSION.requiredDeltaVMs} m/s without overloading the launch frame.`, {
       fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(650) },

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { checkLock, generateLockPuzzle, layoutTileRow, toRoman, type LockPuzzle } from '../core/puzzles/rome';
+import { checkLock, fromRoman, generateLockPuzzle, layoutTileRow, LEARN_GOAL, romeHints, type LockPuzzle } from '../core/puzzles/rome';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
@@ -102,6 +102,7 @@ export class RomeEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Crack the Numeral Lock',
+      learnGoal: LEARN_GOAL,
       line: 'Tap the symbol tiles in order to build the Roman numeral for the target number, then tap Open Lock.',
       quiz: {
         question: 'Quick check: which Roman numeral stands for the number 9?',
@@ -145,10 +146,7 @@ export class RomeEraScene extends Phaser.Scene {
     // lines in portrait and used to land only ~3px above the fixed-y attemptText below it.
     this.attemptText.setY(this.targetText.y + this.targetText.displayHeight + 20 + this.attemptText.displayHeight / 2);
     this.updateAttemptText();
-    this.hints = new HintTracker([
-      { level: 1, text: `It uses ${toRoman(this.puzzle.target).length} symbols.` },
-      { level: 2, text: `The answer is ${toRoman(this.puzzle.target)}.` },
-    ]);
+    this.hints = new HintTracker(romeHints(this.puzzle.target));
     this.drawTiles();
   }
 
@@ -223,7 +221,11 @@ export class RomeEraScene extends Phaser.Scene {
       this.hud.registerStreak(false);
       this.mistakes += 1;
       burstError(this, GAME_WIDTH / 2, 220 + TOP_SHIFT);
-      showToast(this, `That opens ${attemptStr.length ? 'a different' : 'no'} vault. Try again!`, PALETTE.danger);
+      const attemptValue = fromRoman(attemptStr);
+      const why = attemptValue === null
+        ? "That's not a valid numeral order — check the rules for which symbols can repeat or subtract."
+        : `That spells ${attemptValue}, but the lock needs ${this.puzzle.target}.`;
+      showToast(this, `${why} Try again!`, PALETTE.danger);
       this.clearAttempt();
       const autoHint = this.hints.registerMistake();
       if (autoHint) {

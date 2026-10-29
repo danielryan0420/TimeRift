@@ -1,4 +1,8 @@
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Cryptography: Caesar ciphers, where every letter shifts by the same fixed amount through the alphabet.';
 
 /** Colonial spy networks like the Culper Ring used simple letter-shift codes to hide messages. */
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -48,4 +52,13 @@ export function generateCiphers(count: number, seed: number): CipherChallenge[] 
 
 export function checkShift(challenge: CipherChallenge, triedShift: number): boolean {
   return ((triedShift % 26) + 26) % 26 === challenge.shift;
+}
+
+/** Tier 1: the conceptual rule. Tier 2: what the first letter should decode to. Tier 3: the exact shift. */
+export function revolutionHints(challenge: CipherChallenge): HintDef[] {
+  return [
+    { level: 1, text: 'Every letter in the real message shifts by the same number of letters. Turn the wheel and watch the green preview below the code.' },
+    { level: 2, text: `The real message starts with the letter "${challenge.plaintext[0]}" — turn the wheel until the preview's first letter matches.` },
+    { level: 3, text: `The shift is ${challenge.shift}.` },
+  ];
 }

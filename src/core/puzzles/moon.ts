@@ -1,5 +1,9 @@
 /** Simplified real rocket physics: thrust-to-weight ratio and the Tsiolkovsky rocket equation. */
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Rocket science: balancing thrust-to-weight ratio (can it lift off?) against the rocket equation (does it have enough delta-v?).';
 
 export interface RocketConfig {
   thrustN: number;
@@ -129,5 +133,22 @@ export function generateMissions(seed: number): MoonMission[] {
     { label: 'Test Hop', dryMassKg: dryMassEasy, requiredDeltaVMs: requiredEasy },
     { label: 'Orbit Insertion', dryMassKg: dryMassMid, requiredDeltaVMs: requiredMid },
     { label: 'Trans-Lunar Injection', dryMassKg: dryMassHard, requiredDeltaVMs: requiredHard },
+  ];
+}
+
+/** Fuel mass that lands right at a mission's required delta-v (inverting the rocket equation; independent of engine, since thrust doesn't appear in it). */
+export function neededFuelKg(mission: Pick<MoonMission, 'dryMassKg' | 'requiredDeltaVMs'>): number {
+  return Math.round(mission.dryMassKg * (Math.exp(mission.requiredDeltaVMs / EXHAUST_VELOCITY_MS) - 1));
+}
+
+/** Tier 1: the thrust/weight-vs-fuel tradeoff. Tier 2: engine choice affects that tradeoff. Tier 3: the fuel load worked out for the current mission and engine. */
+export function moonHints(
+  mission: Pick<MoonMission, 'dryMassKg' | 'requiredDeltaVMs'>,
+  engine: Pick<MoonEngine, 'label'>,
+): HintDef[] {
+  return [
+    { level: 1, text: 'More fuel adds delta-v, but also adds weight — it can tip the thrust/weight ratio below 1!' },
+    { level: 2, text: 'A bigger engine raises thrust/weight without changing delta-v as much — if you are stuck, try upgrading.' },
+    { level: 3, text: `With the ${engine.label} engine, try around ${neededFuelKg(mission).toLocaleString()} kg of fuel.` },
   ];
 }

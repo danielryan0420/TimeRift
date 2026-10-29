@@ -1,4 +1,8 @@
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Simple machines: how a block\'s weight and the distance it must travel decide whether you need a ramp, lever, sledge, or wet sand.';
 
 /** Real techniques Egyptians used to raise pyramid stones. */
 export type Tool = 'ramp' | 'lever' | 'sled' | 'water';
@@ -57,4 +61,34 @@ export function generateBlocks(count: number, seed: number): BlockChallenge[] {
 
 export function checkAnswer(block: BlockChallenge, chosenTool: Tool): boolean {
   return block.correctTool === chosenTool;
+}
+
+/** Nudges the player toward the reasoning (distance first, then weight) without giving the tool away. */
+export function conceptHint(block: BlockChallenge): string {
+  if (block.distanceM > LONG_HAUL_DISTANCE_M) return 'That is a long haul — think about cutting friction on the sand...';
+  if (block.weightKg > RAMP_WEIGHT_KG) return 'That is very heavy for a short move — think about mechanical advantage...';
+  if (block.weightKg > SLED_WEIGHT_KG) return 'Medium weight, short move — think about something short you can pry with...';
+  return 'Light enough for a short move — the simplest drag will do...';
+}
+
+/** Tier 1: a conceptual nudge. Tier 2: the full rule of thumb, no numbers plugged in yet. Tier 3: the rule worked through with this block's real numbers. */
+export function egyptHints(block: BlockChallenge): HintDef[] {
+  const why = block.distanceM > LONG_HAUL_DISTANCE_M
+    ? 'that long haul means friction is the real problem'
+    : block.weightKg > RAMP_WEIGHT_KG
+      ? "that's too heavy to pry or just drag"
+      : block.weightKg > SLED_WEIGHT_KG
+        ? "that's a job for prying, not dragging"
+        : "it's light enough to just drag";
+  return [
+    { level: 1, text: conceptHint(block) },
+    {
+      level: 2,
+      text: `Rule of thumb: over ${LONG_HAUL_DISTANCE_M}m → Wet Sand. 40m or under: over ${RAMP_WEIGHT_KG}kg → Ramp, over ${SLED_WEIGHT_KG}kg → Lever, else → Sledge.`,
+    },
+    {
+      level: 3,
+      text: `This block is ${block.weightKg}kg and travels ${block.distanceM}m — ${why}, so use the ${TOOL_INFO[block.correctTool].label}!`,
+    },
+  ];
 }

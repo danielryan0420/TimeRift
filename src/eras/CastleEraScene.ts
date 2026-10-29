@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import {
+  castleHints,
   evaluateShot,
   generateTargets,
+  LEARN_GOAL,
   MAX_ANGLE_DEG,
   MAX_COUNTERWEIGHT_KG,
   MIN_ANGLE_DEG,
@@ -148,6 +150,7 @@ export class CastleEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Aim the Trebuchet',
+      learnGoal: LEARN_GOAL,
       line: 'Drag the Counterweight (the heavy mass that flings the arm) and Release Angle sliders so the predicted range matches the target distance, then tap Fire!',
       quiz: {
         question: 'Quick check: which release angle usually gives the longest range?',
@@ -331,10 +334,7 @@ export class CastleEraScene extends Phaser.Scene {
       1,
       110,
     );
-    this.hints = new HintTracker([
-      { level: 1, text: 'A 45° release angle gives the longest range for a given counterweight.' },
-      { level: 2, text: `Aim for about ${target.targetDistanceM} m of range.` },
-    ]);
+    this.hints = new HintTracker(castleHints(target));
     this.resetArm();
     this.updateReadout();
   }

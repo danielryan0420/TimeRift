@@ -1,4 +1,8 @@
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = "Roman numerals: how symbols like I, V, X, L, C, D, M are added or subtracted in place-value chunks, since Rome had no zero.";
 
 const VALUES: [string, number][] = [
   ['M', 1000],
@@ -62,6 +66,23 @@ export function fromRoman(s: string): number | null {
 
 export function checkLock(target: number, attempt: string): boolean {
   return fromRoman(attempt) === target;
+}
+
+/** Splits a number into its nonzero thousands/hundreds/tens/ones chunks, e.g. 594 -> [500, 90, 4]. */
+function placeValueChunks(n: number): number[] {
+  const chunks = [Math.floor(n / 1000) * 1000, Math.floor((n % 1000) / 100) * 100, Math.floor((n % 100) / 10) * 10, n % 10];
+  return chunks.filter((c) => c > 0);
+}
+
+/** Tier 1: how many symbols to expect. Tier 2: the place-value chunks to convert separately. Tier 3: the chunks converted and combined into the answer. */
+export function romeHints(target: number): HintDef[] {
+  const roman = toRoman(target);
+  const chunks = placeValueChunks(target);
+  return [
+    { level: 1, text: `It uses ${roman.length} symbols.` },
+    { level: 2, text: `Break ${target} into place values: ${chunks.join(' + ')}. Convert each chunk to numerals on its own, then combine them in order.` },
+    { level: 3, text: `${target} = ${chunks.join(' + ')} = ${chunks.map((c) => toRoman(c)).join('')} = ${roman}.` },
+  ];
 }
 
 export interface LockPuzzle {

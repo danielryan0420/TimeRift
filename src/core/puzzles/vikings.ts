@@ -1,4 +1,8 @@
 import { mulberry32 } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Navigation: reading a compass bearing (0-360°) off a fixed star like Polaris to steer a steady heading.';
 
 /** Shortest angular distance between two compass bearings, in degrees [0,180]. */
 export function bearingDiff(a: number, b: number): number {
@@ -46,4 +50,15 @@ export interface VoyageOutcome {
 export function evaluateLeg(leg: VoyageLeg, chosenBearing: number): VoyageOutcome {
   const diffDeg = bearingDiff(chosenBearing, leg.targetBearing);
   return { legId: leg.id, success: diffDeg <= leg.toleranceDeg, diffDeg };
+}
+
+/** Tier 1: how to read the clue. Tier 2: a 60°-wide range to aim within. Tier 3: the exact heading. */
+export function vikingsHints(leg: VoyageLeg): HintDef[] {
+  const lo = ((leg.targetBearing - 30) % 360 + 360) % 360;
+  const hi = (leg.targetBearing + 30) % 360;
+  return [
+    { level: 1, text: "Polaris marks true north — read the clue to figure out which way your bow should point relative to it." },
+    { level: 2, text: `That's somewhere between ${lo}° and ${hi}° — drag the dial into that range.` },
+    { level: 3, text: `Aim for exactly ${leg.targetBearing}°.` },
+  ];
 }

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { evaluatePlacement, generateCanvases, type CanvasChallenge } from '../core/puzzles/florence';
+import { evaluatePlacement, florenceHints, generateCanvases, LEARN_GOAL, type CanvasChallenge } from '../core/puzzles/florence';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
@@ -112,6 +112,7 @@ export class FlorenceEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Find the Golden Ratio',
+      learnGoal: LEARN_GOAL,
       line: 'Drag the red line to split the canvas using the golden ratio (a pleasing split where the big part compares to the whole the same way the small part compares to the big part) — about two-thirds of the way across — then tap Set Composition.',
       quiz: {
         question: 'Quick check: roughly where should the focal line sit for a pleasing golden-ratio split?',
@@ -153,10 +154,7 @@ export class FlorenceEraScene extends Phaser.Scene {
     this.roundText.setText(`Canvas ${this.index + 1} of ${CANVAS_COUNT}`);
     this.subjectText.setText(`Place the focal line for ${challenge.subject} using the golden ratio.`);
     this.subjectText.setY(this.roundText.y + this.roundText.displayHeight + 8);
-    this.hints = new HintTracker([
-      { level: 1, text: `The golden ratio splits a span of ${challenge.widthPx}px so the whole is to the long part as the long part is to the short part.` },
-      { level: 2, text: `Aim for about ${Math.round(challenge.targetXPx)}px from the left edge.` },
-    ]);
+    this.hints = new HintTracker(florenceHints(challenge));
 
     this.frame?.destroy();
     this.displayWidthPx = Math.min(challenge.widthPx, MAX_FRAME_W);

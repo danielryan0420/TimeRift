@@ -8,8 +8,10 @@ import {
   ENGINES,
   EXHAUST_VELOCITY_MS,
   generateMissions,
+  LEARN_GOAL,
   MAX_FUEL_KG,
   MAX_STRUCTURAL_MASS_KG,
+  moonHints,
   type MoonMission,
   type RocketConfig,
 } from '../core/puzzles/moon';
@@ -130,6 +132,7 @@ export class MoonEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Balance the Launch',
+      learnGoal: LEARN_GOAL,
       line: 'Pick an engine and drag the fuel slider so your Thrust-to-weight ratio (whether your push is strong enough to beat gravity) is over 1 and your Delta-V (total speed change the rocket can produce) meets the mission need, then tap Launch!',
       quiz: {
         question: 'Quick check: what happens if you add too much fuel?',
@@ -311,10 +314,7 @@ export class MoonEraScene extends Phaser.Scene {
     this.fuelTick?.destroy();
     this.fuelTick = drawThresholdTick(this, BAR_X, FUEL_BAR_Y, BAR_W, mission.requiredDeltaVMs / MAX_DV_SCALE, 22);
     this.updateReadouts();
-    this.hints = new HintTracker([
-      { level: 1, text: 'More fuel adds delta-v, but also adds weight — it can tip the thrust/weight ratio below 1!' },
-      { level: 2, text: 'A bigger engine raises thrust/weight without changing delta-v as much.' },
-    ]);
+    this.hints = new HintTracker(moonHints(mission, ENGINES[this.engineIndex]));
   }
 
   private showHint(): void {

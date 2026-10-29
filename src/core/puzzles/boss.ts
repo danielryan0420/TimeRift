@@ -1,15 +1,5 @@
 import type { EraId } from '../types';
 import { ERA_ORDER } from '../types';
-import type { HintDef } from '../hints';
-import { TOOL_INFO, type BlockChallenge } from './egypt';
-import { GOOD_INFO, type CaravanStop } from './china';
-import type { VoyageLeg } from './vikings';
-import type { SiegeTarget } from './castle';
-import type { CanvasChallenge } from './florence';
-import type { CipherChallenge } from './revolution';
-import { MAX_DRIVEN_TEETH, MIN_DRIVEN_TEETH, outputRpm, type FactoryOrder } from './industrial';
-import type { FlightAttempt } from './flight';
-import { toRoman } from './rome';
 
 /** The final showdown cycles through one puzzle round per era, in chronological order. */
 export const BOSS_ROUND_ORDER: EraId[] = ERA_ORDER;
@@ -83,103 +73,19 @@ export const BOSS_ROUND_GOAL: Record<EraId, string> = {
   moon: 'Drag into the green zone to reach escape velocity safely.',
 };
 
-function bossEgyptHint(block: BlockChallenge): string {
-  if (block.distanceM > 40) return 'That is a long haul — think about cutting friction on the sand...';
-  if (block.weightKg > 900) return 'That is very heavy for a short move — think about mechanical advantage...';
-  if (block.weightKg > 500) return 'Medium weight, short move — think about something short you can pry with...';
-  return 'Light enough for a short move — the simplest drag will do...';
-}
-
-function bossChinaHint(stop: CaravanStop): string {
-  return `Check the reference table: needs cargo under ${stop.maxWeightKg} kg, worth ${stop.minValueSilver}+ silver.`;
-}
-
 /**
- * Two-level hints for each boss trial: a conceptual nudge first, then the concrete answer.
- * Mirrors the per-era HintTracker content so a player who's stuck in the final fight gets the
- * same kind of help they got the first time they met that skill.
+ * Boss trials reuse the exact same tiered hints (nudge, bigger clue, worked example) as the
+ * standalone eras, instead of a second hand-written copy that could drift out of sync — a
+ * player stuck in the final fight gets the same kind of help they got the first time they
+ * met that skill.
  */
-export function egyptBossHints(block: BlockChallenge): HintDef[] {
-  return [
-    { level: 1, text: bossEgyptHint(block) },
-    { level: 2, text: `Use the ${TOOL_INFO[block.correctTool].label}!` },
-  ];
-}
-
-export function romeBossHints(target: number): HintDef[] {
-  return [
-    { level: 1, text: `It uses ${toRoman(target).length} symbols.` },
-    { level: 2, text: `The answer is ${toRoman(target)}.` },
-  ];
-}
-
-export function chinaBossHints(stop: CaravanStop): HintDef[] {
-  return [
-    { level: 1, text: bossChinaHint(stop) },
-    { level: 2, text: `Offer the ${GOOD_INFO[stop.correctGood].label}!` },
-  ];
-}
-
-export function vikingsBossHints(leg: VoyageLeg): HintDef[] {
-  return [
-    { level: 1, text: 'Drag inside the dial to rotate the needle toward the clue.' },
-    { level: 2, text: `Aim for about ${leg.targetBearing}°.` },
-  ];
-}
-
-export function castleBossHints(target: SiegeTarget): HintDef[] {
-  return [
-    { level: 1, text: "A bigger counterweight sends the shot farther (the angle's locked this round)." },
-    { level: 2, text: `Aim for about ${target.targetDistanceM} m of range.` },
-  ];
-}
-
-export function florenceBossHints(canvas: CanvasChallenge): HintDef[] {
-  return [
-    { level: 1, text: 'The golden ratio splits the frame unevenly — favor one side.' },
-    { level: 2, text: `Aim for about ${Math.round(canvas.targetXPx)}px from the left edge.` },
-  ];
-}
-
-export function revolutionBossHints(cipher: CipherChallenge): HintDef[] {
-  return [
-    { level: 1, text: 'Watch the green decoded preview as you turn the wheel.' },
-    { level: 2, text: `The shift is ${cipher.shift}.` },
-  ];
-}
-
-/** Searches the full driven-gear range for the setting closest to the order's target RPM. */
-function bestDrivenTeeth(order: FactoryOrder, driveTeeth: number): number {
-  let best = MIN_DRIVEN_TEETH;
-  let bestDiff = Infinity;
-  for (let driven = MIN_DRIVEN_TEETH; driven <= MAX_DRIVEN_TEETH; driven++) {
-    const diff = Math.abs(outputRpm({ inputRpm: order.inputRpm, driveTeeth, drivenTeeth: driven }) - order.targetRpm);
-    if (diff < bestDiff) {
-      bestDiff = diff;
-      best = driven;
-    }
-  }
-  return best;
-}
-
-export function industrialBossHints(order: FactoryOrder, driveTeeth: number): HintDef[] {
-  return [
-    { level: 1, text: 'Output RPM = input RPM × drive teeth ÷ driven teeth.' },
-    { level: 2, text: `Try about ${bestDrivenTeeth(order, driveTeeth)} driven teeth.` },
-  ];
-}
-
-export function flightBossHints(attempt: FlightAttempt): HintDef[] {
-  return [
-    { level: 1, text: 'Lift grows with speed squared, but too much speed breaks the frame.' },
-    { level: 2, text: `Try somewhere between ${attempt.minSpeedMs} and ${attempt.maxSafeSpeedMs} m/s.` },
-  ];
-}
-
-export function moonBossHints(mission: { dryMassKg: number; requiredDeltaVMs: number; exhaustVelocityMs: number }): HintDef[] {
-  const neededFuelKg = Math.round(mission.dryMassKg * (Math.exp(mission.requiredDeltaVMs / mission.exhaustVelocityMs) - 1));
-  return [
-    { level: 1, text: 'More fuel adds delta-v, but also adds weight — it can tip the thrust/weight ratio below 1!' },
-    { level: 2, text: `Try around ${neededFuelKg.toLocaleString()} kg of fuel.` },
-  ];
-}
+export { egyptHints as egyptBossHints } from './egypt';
+export { romeHints as romeBossHints } from './rome';
+export { chinaHints as chinaBossHints } from './china';
+export { vikingsHints as vikingsBossHints } from './vikings';
+export { castleHints as castleBossHints } from './castle';
+export { florenceHints as florenceBossHints } from './florence';
+export { revolutionHints as revolutionBossHints } from './revolution';
+export { industrialHints as industrialBossHints } from './industrial';
+export { flightHints as flightBossHints } from './flight';
+export { moonHints as moonBossHints } from './moon';

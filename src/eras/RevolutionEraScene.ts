@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { caesarDecode, checkShift, generateCiphers, type CipherChallenge } from '../core/puzzles/revolution';
+import { caesarDecode, checkShift, generateCiphers, LEARN_GOAL, revolutionHints, type CipherChallenge } from '../core/puzzles/revolution';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
@@ -115,6 +115,7 @@ export class RevolutionEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Crack the Culper Code',
+      learnGoal: LEARN_GOAL,
       line: 'Drag the wheel to shift (slide) the letters until the green preview text makes sense, then tap Decode!',
       quiz: {
         question: 'Quick check: how do you know you picked the right shift?',
@@ -195,10 +196,7 @@ export class RevolutionEraScene extends Phaser.Scene {
     this.cipherText.setText(challenge.ciphertext);
     this.cipherText.setY(this.roundText.y + this.roundText.displayHeight + 10);
     this.updateShiftText();
-    this.hints = new HintTracker([
-      { level: 1, text: 'Rotate the wheel — watch the green preview text below the code.' },
-      { level: 2, text: `The shift is ${challenge.shift}.` },
-    ]);
+    this.hints = new HintTracker(revolutionHints(challenge));
   }
 
   private showHint(): void {

@@ -17,6 +17,8 @@ export interface HowToPlayOptions {
   emoji?: string;
   title: string;
   line: string;
+  /** The one real-world idea this puzzle teaches, shown as a highlighted callout above the how-to-play line. */
+  learnGoal?: string;
   /** A tiny, low-stakes multiple-choice check — any answer lets the player continue. */
   quiz?: QuizCheck;
   dismissLabel?: string;
@@ -79,6 +81,13 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
     }).setOrigin(0.5, 0));
     cursorY += titleText.displayHeight + 16;
 
+    if (opts.learnGoal) {
+      const learnText = place(scene.add.text(0, cursorY, `🎯 What you'll learn: ${opts.learnGoal}`, {
+        fontFamily: FONT_FAMILY, fontSize: '15px', color: PALETTE.success, align: 'center', wordWrap: { width: panelW - 60 },
+      }).setOrigin(0.5, 0));
+      cursorY += learnText.displayHeight + 16;
+    }
+
     const lineText = place(scene.add.text(0, cursorY, opts.line, {
       fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textLight, align: 'center', wordWrap: { width: panelW - 60 },
     }).setOrigin(0.5, 0));
@@ -136,7 +145,10 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
     }
   } else {
     const hasQuiz = !!opts.quiz;
-    const panelH = hasQuiz ? 360 : 240;
+    // Learning-goal callout adds a fixed extra row (it's a short single sentence at this
+    // width); every element below it shifts down by the same amount.
+    const learnOffset = opts.learnGoal ? 34 : 0;
+    const panelH = (hasQuiz ? 360 : 240) + learnOffset;
     bg.fillStyle(PALETTE.panelBg, 0.97);
     bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
     bg.lineStyle(3, PALETTE.panelLine, 0.9);
@@ -149,7 +161,18 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
     }).setOrigin(0.5);
     container.add(titleText);
 
-    const lineText = scene.add.text(0, -panelH / 2 + (hasQuiz ? 86 : 100), opts.line, {
+    if (opts.learnGoal) {
+      const learnText = scene.add.text(0, -panelH / 2 + 66, `🎯 What you'll learn: ${opts.learnGoal}`, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '14px',
+        color: PALETTE.success,
+        align: 'center',
+        wordWrap: { width: panelW - 70 },
+      }).setOrigin(0.5);
+      container.add(learnText);
+    }
+
+    const lineText = scene.add.text(0, -panelH / 2 + (hasQuiz ? 86 : 100) + learnOffset, opts.line, {
       fontFamily: FONT_FAMILY,
       fontSize: '17px',
       color: PALETTE.textLight,
@@ -159,7 +182,7 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
     container.add(lineText);
 
     if (opts.quiz) {
-      const qText = scene.add.text(0, -6, opts.quiz.question, {
+      const qText = scene.add.text(0, -6 + learnOffset, opts.quiz.question, {
         fontFamily: FONT_FAMILY,
         fontSize: '16px',
         color: PALETTE.textLight,
@@ -168,7 +191,7 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
       }).setOrigin(0.5);
       container.add(qText);
 
-      const feedback = scene.add.text(0, 46, '', {
+      const feedback = scene.add.text(0, 46 + learnOffset, '', {
         fontFamily: FONT_FAMILY,
         fontSize: '16px',
         color: PALETTE.success,
@@ -185,7 +208,7 @@ export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): 
       const count = opts.quiz.options.length;
       opts.quiz.options.forEach((option, i) => {
         const btnX = -(190 * (count - 1)) / 2 + i * 190;
-        const btn = createButton(scene, btnX, 80, option.label, () => {
+        const btn = createButton(scene, btnX, 80 + learnOffset, option.label, () => {
           if (answered) return;
           answered = true;
           if (option.correct) {

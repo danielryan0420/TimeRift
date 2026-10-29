@@ -1,4 +1,8 @@
 import { mulberry32, pickFrom } from '../rng';
+import type { HintDef } from '../hints';
+
+/** The real-world idea this puzzle teaches, shown in the "What you'll learn" line before play. */
+export const LEARN_GOAL = 'Aerodynamics: lift grows with the square of airspeed, so there is a safe speed window between "too slow to lift" and "too fast to survive."';
 
 /** Simplified lift equation: L = 1/2 * air density * CL * wing area * speed^2. */
 export const AIR_DENSITY_KGM3 = 1.225;
@@ -69,4 +73,14 @@ export function evaluateFlight(attempt: FlightAttempt, airspeedMs: number): Flig
   const tooSlow = liftN < attempt.weightN;
   const tooFast = airspeedMs > attempt.maxSafeSpeedMs;
   return { attemptId: attempt.id, liftN, tooSlow, tooFast, success: !tooSlow && !tooFast };
+}
+
+/** Tier 1: the lift-vs-speed relationship. Tier 2: the safe speed range. Tier 3: one exact speed in the middle of that range. */
+export function flightHints(attempt: FlightAttempt): HintDef[] {
+  const mid = Math.round(((attempt.minSpeedMs + attempt.maxSafeSpeedMs) / 2) * 2) / 2;
+  return [
+    { level: 1, text: 'Lift grows with the square of airspeed — small speed increases matter a lot.' },
+    { level: 2, text: `Try somewhere between ${attempt.minSpeedMs} and ${attempt.maxSafeSpeedMs} m/s.` },
+    { level: 3, text: `Try about ${mid} m/s — right in the middle of the safe window.` },
+  ];
 }

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { evaluateLeg, generateVoyage, type VoyageLeg } from '../core/puzzles/vikings';
+import { evaluateLeg, generateVoyage, LEARN_GOAL, vikingsHints, type VoyageLeg } from '../core/puzzles/vikings';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
@@ -102,6 +102,7 @@ export class VikingsEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Steer by the Stars',
+      learnGoal: LEARN_GOAL,
       line: 'Drag inside the dial to turn the bow until your heading (direction, in degrees) matches the clue about Polaris, the North Star, then tap Set Course!',
       quiz: {
         question: 'Quick check: if Polaris sits dead ahead over the bow, what heading should you set?',
@@ -200,10 +201,7 @@ export class VikingsEraScene extends Phaser.Scene {
     this.clueText.setText(leg.clue);
     this.clueText.setY(this.legText.y + this.legText.displayHeight / 2 + 10);
     this.updateBearingText();
-    this.hints = new HintTracker([
-      { level: 1, text: 'Drag inside the dial to rotate the bow.' },
-      { level: 2, text: `Aim for about ${leg.targetBearing}°.` },
-    ]);
+    this.hints = new HintTracker(vikingsHints(leg));
   }
 
   private showHint(): void {

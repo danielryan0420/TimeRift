@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
 import {
   evaluateFlight,
+  flightHints,
   generateAttempts,
+  LEARN_GOAL,
   MAX_SLIDER_SPEED_MS,
   type FlightAttempt,
 } from '../core/puzzles/flight';
@@ -105,6 +107,7 @@ export class FlightEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'Get the Flyer Airborne',
+      learnGoal: LEARN_GOAL,
       line: 'Drag the airspeed slider until you get enough lift (the upward push that beats gravity) to leave the ground, but not so fast that the frame breaks — then tap Take Off!',
       quiz: {
         question: 'Quick check: what happens to lift as airspeed increases?',
@@ -246,10 +249,7 @@ export class FlightEraScene extends Phaser.Scene {
     );
     this.flyer.setPosition(FLYER_START_X, this.flyerBaseY).setAlpha(1).setAngle(0);
     this.startIdleBob();
-    this.hints = new HintTracker([
-      { level: 1, text: 'Lift grows with the square of airspeed — small speed increases matter a lot.' },
-      { level: 2, text: `Try somewhere between ${attempt.minSpeedMs} and ${attempt.maxSafeSpeedMs} m/s.` },
-    ]);
+    this.hints = new HintTracker(flightHints(attempt));
     this.updateReadout();
   }
 
