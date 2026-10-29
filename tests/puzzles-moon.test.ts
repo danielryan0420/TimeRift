@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canLiftOff, deltaV, ENGINES, evaluateLaunch, MISSIONS, thrustToWeightRatio } from '../src/core/puzzles/moon';
+import { canLiftOff, deltaV, ENGINES, evaluateLaunch, generateMissions, thrustToWeightRatio } from '../src/core/puzzles/moon';
 
 const base = { thrustN: 2_000_000, dryMassKg: 5000, fuelMassKg: 15000, exhaustVelocityMs: 3000 };
 
@@ -47,8 +47,11 @@ describe('rocket force balance', () => {
 describe('moon mission balance: engine choice must matter', () => {
   const MAX_FUEL = 24_000;
   const FUEL_STEP = 200;
+  const SEEDS = Array.from({ length: 50 }, (_, i) => i * 7919 + 1);
 
-  function anyFuelWorks(thrustN: number, mission: (typeof MISSIONS)[number]): boolean {
+  type Mission = ReturnType<typeof generateMissions>[number];
+
+  function anyFuelWorks(thrustN: number, mission: Mission): boolean {
     for (let fuel = 0; fuel <= MAX_FUEL; fuel += FUEL_STEP) {
       const result = evaluateLaunch(
         { thrustN, dryMassKg: mission.dryMassKg, fuelMassKg: fuel, exhaustVelocityMs: 3000 },
@@ -59,29 +62,48 @@ describe('moon mission balance: engine choice must matter', () => {
     return false;
   }
 
-  it('every mission is solvable with at least one engine', () => {
-    for (const mission of MISSIONS) {
+  it('generateMissions is deterministic for a given seed', () => {
+    expect(generateMissions(42)).toEqual(generateMissions(42));
+  });
+
+  it.each(SEEDS)('seed %i: every mission is solvable with at least one engine', (seed) => {
+    for (const mission of generateMissions(seed)) {
       const solvable = ENGINES.some((engine) => anyFuelWorks(engine.thrustN, mission));
       expect(solvable).toBe(true);
     }
   });
 
-  it('the Small engine cannot reach the hardest mission (engine pick is not cosmetic)', () => {
+  it.each(SEEDS)('seed %i: the Small engine cannot reach the hardest mission (engine pick is not cosmetic)', (seed) => {
     const small = ENGINES.find((e) => e.id === 'small')!;
-    const hardest = MISSIONS[MISSIONS.length - 1];
+    const missions = generateMissions(seed);
+    const hardest = missions[missions.length - 1];
     expect(anyFuelWorks(small.thrustN, hardest)).toBe(false);
   });
 
-  it('the Small engine still clears the easiest mission', () => {
+  it.each(SEEDS)('seed %i: the Small engine still clears the easiest mission', (seed) => {
     const small = ENGINES.find((e) => e.id === 'small')!;
-    const easiest = MISSIONS[0];
+    const easiest = generateMissions(seed)[0];
     expect(anyFuelWorks(small.thrustN, easiest)).toBe(true);
   });
 
-  it('the Large engine clears every mission', () => {
+  it.each(SEEDS)('seed %i: the Large engine clears every mission', (seed) => {
     const large = ENGINES.find((e) => e.id === 'large')!;
-    for (const mission of MISSIONS) {
+    for (const mission of generateMissions(seed)) {
       expect(anyFuelWorks(large.thrustN, mission)).toBe(true);
     }
+  });
+
+  it.each(SEEDS)('seed %i: mission dry mass and required delta-v both increase with difficulty', (seed) => {
+    const missions = generateMissions(seed);
+    expect(missions[0].dryMassKg).toBeLessThan(missions[1].dryMassKg);
+    expect(missions[1].dryMassKg).toBeLessThan(missions[2].dryMassKg);
+    expect(missions[0].requiredDeltaVMs).toBeLessThan(missions[1].requiredDeltaVMs);
+    expect(missions[1].requiredDeltaVMs).toBeLessThan(missions[2].requiredDeltaVMs);
+  });
+
+  it('different seeds produce different mission targets', () => {
+    const a = generateMissions(1);
+    const b = generateMissions(2);
+    expect(a).not.toEqual(b);
   });
 });

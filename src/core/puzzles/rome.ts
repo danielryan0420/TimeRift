@@ -70,6 +70,26 @@ export interface LockPuzzle {
   tiles: string[];
 }
 
+export interface TileRowLayout {
+  tileSize: number;
+  spacing: number;
+  startX: number;
+}
+
+/**
+ * Lays out `count` equal-size square tiles in a single centered row that always fits inside
+ * [margin, gameWidth - margin], however many tiles there are (anywhere from a few to the
+ * worst case of a long numeral plus distractors). Solves tileSize from the available width
+ * inward instead of starting from a fixed tile size and hoping the row fits — a fixed size
+ * floor is what let the row run ~2px past the screen edge for larger tile counts.
+ */
+export function layoutTileRow(count: number, gameWidth: number, margin = 20, gap = 8, maxTileSize = 64): TileRowLayout {
+  const tileSize = Math.min(maxTileSize, (gameWidth - margin * 2 - gap * (count - 1)) / count);
+  const spacing = tileSize + gap;
+  const startX = gameWidth / 2 - (spacing * (count - 1)) / 2;
+  return { tileSize, spacing, startX };
+}
+
 const SYMBOL_CHARS = ['I', 'V', 'X', 'L', 'C', 'D', 'M'];
 
 export function generateLockPuzzle(seed: number, min = 1, max = 500): LockPuzzle {

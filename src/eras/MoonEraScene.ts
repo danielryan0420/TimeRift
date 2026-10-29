@@ -7,9 +7,10 @@ import {
   totalMass,
   ENGINES,
   EXHAUST_VELOCITY_MS,
+  generateMissions,
   MAX_FUEL_KG,
   MAX_STRUCTURAL_MASS_KG,
-  MISSIONS,
+  type MoonMission,
   type RocketConfig,
 } from '../core/puzzles/moon';
 import type { EraAttemptResult } from '../core/types';
@@ -46,6 +47,7 @@ const COLOR_SUCCESS = 0x5ee37a;
 const COLOR_DANGER = 0xff6b6b;
 
 export class MoonEraScene extends Phaser.Scene {
+  private missions: MoonMission[] = [];
   private missionIndex = 0;
   private fuelMassKg = 8000;
   private engineIndex = 1;
@@ -78,6 +80,7 @@ export class MoonEraScene extends Phaser.Scene {
 
     this.drawBackground();
 
+    this.missions = generateMissions(Math.floor(Math.random() * 1e9));
     this.missionIndex = 0;
     this.fuelMassKg = 8000;
     this.engineIndex = 1;
@@ -262,7 +265,7 @@ export class MoonEraScene extends Phaser.Scene {
   }
 
   private currentConfig(): RocketConfig {
-    const mission = MISSIONS[this.missionIndex];
+    const mission = this.missions[this.missionIndex];
     return {
       thrustN: ENGINES[this.engineIndex].thrustN,
       dryMassKg: mission.dryMassKg,
@@ -275,7 +278,7 @@ export class MoonEraScene extends Phaser.Scene {
     const cfg = this.currentConfig();
     const twr = thrustToWeightRatio(cfg);
     const dv = deltaV(cfg);
-    const required = MISSIONS[this.missionIndex].requiredDeltaVMs;
+    const required = this.missions[this.missionIndex].requiredDeltaVMs;
     const overweight = totalMass(cfg) > MAX_STRUCTURAL_MASS_KG;
 
     const twrRatio = Phaser.Math.Clamp(twr / MAX_TWR_SCALE, 0, 1);
@@ -302,8 +305,8 @@ export class MoonEraScene extends Phaser.Scene {
   }
 
   private startMission(): void {
-    const mission = MISSIONS[this.missionIndex];
-    this.missionText.setText(`Mission ${this.missionIndex + 1} of ${MISSIONS.length}: ${mission.label}\nNeed Delta-V ≥ ${mission.requiredDeltaVMs} m/s with Thrust/Weight > 1.`);
+    const mission = this.missions[this.missionIndex];
+    this.missionText.setText(`Mission ${this.missionIndex + 1} of ${this.missions.length}: ${mission.label}\nNeed Delta-V ≥ ${mission.requiredDeltaVMs} m/s with Thrust/Weight > 1.`);
     this.rocket.setPosition(ROCKET_X, ROCKET_BASE_Y).setAngle(0).setAlpha(1);
     this.fuelTick?.destroy();
     this.fuelTick = drawThresholdTick(this, BAR_X, FUEL_BAR_Y, BAR_W, mission.requiredDeltaVMs / MAX_DV_SCALE, 22);
@@ -328,7 +331,7 @@ export class MoonEraScene extends Phaser.Scene {
   private launch(): void {
     if (this.locked) return;
     const cfg = this.currentConfig();
-    const mission = MISSIONS[this.missionIndex];
+    const mission = this.missions[this.missionIndex];
     const result = evaluateLaunch(cfg, mission.requiredDeltaVMs);
 
     this.tweens.killTweensOf(this.rocket);
@@ -338,7 +341,7 @@ export class MoonEraScene extends Phaser.Scene {
       burstSuccess(this, this.rocket.x, this.rocket.y - 30, 0xd8d8e8);
       this.tweens.add({ targets: this.rocket, y: ROCKET_BASE_Y - 480, duration: 900, ease: 'Cubic.easeIn' });
       this.missionIndex += 1;
-      if (this.missionIndex >= MISSIONS.length) {
+      if (this.missionIndex >= this.missions.length) {
         this.locked = true;
         this.time.delayedCall(900, () => this.finish());
       } else {

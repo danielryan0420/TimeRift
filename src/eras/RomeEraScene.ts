@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { checkLock, generateLockPuzzle, toRoman, type LockPuzzle } from '../core/puzzles/rome';
+import { checkLock, generateLockPuzzle, layoutTileRow, toRoman, type LockPuzzle } from '../core/puzzles/rome';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EraHUD } from '../ui/HUD';
@@ -156,9 +156,7 @@ export class RomeEraScene extends Phaser.Scene {
     this.tileButtons.forEach((b) => b.destroy());
     this.tileButtons = [];
     const count = this.puzzle.tiles.length;
-    const spacing = Math.min(80, (GAME_WIDTH - 40) / Math.max(1, count - 1));
-    const tileSize = Math.max(44, Math.min(64, spacing - 6));
-    const startX = GAME_WIDTH / 2 - (spacing * (count - 1)) / 2;
+    const { tileSize, spacing, startX } = layoutTileRow(count, GAME_WIDTH);
     const tilesY = 360 + TOP_SHIFT;
     this.puzzle.tiles.forEach((symbol, i) => {
       const btn = createButton(
