@@ -12,8 +12,17 @@ export interface HUDOptions {
   onToggleMute: (muted: boolean) => void;
 }
 
-/** Height of the top HUD bar; portrait needs a second row since the title no longer fits beside the buttons. */
-export const HUD_BAR_HEIGHT = IS_PORTRAIT ? 104 : 56;
+const PORTRAIT_CONTROLS_Y = 72;
+/** Bottom edge of the Back/Hint button row (controlsY + 22 center offset + half the 40px button height). */
+const PORTRAIT_BUTTON_ROW_BOTTOM = PORTRAIT_CONTROLS_Y + 22 + 20;
+
+/**
+ * Height of the top HUD bar; portrait needs a second row since the title no longer fits
+ * beside the buttons. Sized to fully contain the Back/Hint button row (114px bottom) with a
+ * margin — it used to be 104, which put the goal banner below it (at 110) squarely behind
+ * the buttons instead of below them.
+ */
+export const HUD_BAR_HEIGHT = IS_PORTRAIT ? PORTRAIT_BUTTON_ROW_BOTTOM + 6 : 56;
 
 export class EraHUD {
   readonly hintButton: Phaser.GameObjects.Container;
@@ -24,13 +33,21 @@ export class EraHUD {
   private streak = 0;
   private muted: boolean;
   private scene: Phaser.Scene;
+  private bar: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, opts: HUDOptions) {
     this.scene = scene;
     this.muted = opts.muted;
-    const bar = scene.add.graphics().setDepth(900);
-    bar.fillStyle(PALETTE.panelBg, 0.55);
-    bar.fillRect(0, 0, GAME_WIDTH, HUD_BAR_HEIGHT);
+    // Fixed height, covering only the title/controls row. An earlier version of this bar
+    // tried to dynamically stretch down to cover the goal banner too, but the banner's
+    // wrapped height isn't known until setGoal() runs, and every era scene positions its
+    // own first content element at a fixed offset from the HUD — a bar that grows out from
+    // under it unpredictably shoved that first element (e.g. Castle's "Target 1 of 3...")
+    // right back under the (now taller) bar on some screens. Giving the goal text its own
+    // backgroundColor below is self-contained and doesn't change any other scene's layout.
+    this.bar = scene.add.graphics().setDepth(900);
+    this.bar.fillStyle(PALETTE.panelBg, 0.55);
+    this.bar.fillRect(0, 0, GAME_WIDTH, HUD_BAR_HEIGHT);
 
     scene.add.text(16, 12, opts.title, {
       fontFamily: FONT_FAMILY,
@@ -39,11 +56,13 @@ export class EraHUD {
       wordWrap: { width: GAME_WIDTH - 32 },
     }).setDepth(901);
 
-    this.goalText = scene.add.text(16, HUD_BAR_HEIGHT + 6, '', {
+    this.goalText = scene.add.text(12, HUD_BAR_HEIGHT + 8, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.gold,
-      wordWrap: { width: GAME_WIDTH - 32 },
+      backgroundColor: '#1a0b2ecc',
+      padding: { x: 4, y: 3 },
+      wordWrap: { width: GAME_WIDTH - 40, useAdvancedWrap: true },
     }).setDepth(901);
 
     this.streakText = scene.add.text(GAME_WIDTH / 2, HUD_BAR_HEIGHT + 60, '', {
@@ -52,7 +71,7 @@ export class EraHUD {
       color: PALETTE.gold,
     }).setOrigin(0.5, 0).setDepth(901).setScale(0);
 
-    const controlsY = IS_PORTRAIT ? 72 : 18;
+    const controlsY = IS_PORTRAIT ? PORTRAIT_CONTROLS_Y : 18;
     this.timerText = scene.add.text(GAME_WIDTH / 2, IS_PORTRAIT ? 48 : 18, '0:00', {
       fontFamily: FONT_FAMILY,
       fontSize: '20px',
@@ -83,9 +102,24 @@ export class EraHUD {
     this.timerText.setText(`${m}:${s.toString().padStart(2, '0')}`);
   }
 
+  /**
+   * Bottom edge of the goal banner after word-wrap, so a scene's first content element can
+   * be positioned below it instead of at a fixed offset. On the wide desktop canvas the
+   * banner rarely wraps, but it's a left-aligned pill that can still sit under centered
+   * scene text at the same fixed y (e.g. Castle's "Target 1 of 3..."), with nothing to stop
+   * them overlapping other than luck. Call after setGoal().
+   */
+  get goalBottom(): number {
+    return this.goalText.y + this.goalText.displayHeight;
+  }
+
   /** Keeps the current objective visible at all times, so a player never has to guess what to do. */
   setGoal(goal: string): void {
     this.goalText.setText(goalBannerText(goal));
+    // Long goal lines wrap to extra rows in portrait; keep the (usually hidden, scale-0)
+    // streak popup below them instead of at a fixed offset that assumed a short goal. This
+    // only repositions the HUD's own streak popup, so it can't push any era-authored content.
+    this.streakText.setY(Math.max(HUD_BAR_HEIGHT + 60, this.goalText.y + this.goalText.displayHeight + 10));
   }
 
   /** Call with true on a correct answer, false on a mistake, to drive the streak/combo callout. */

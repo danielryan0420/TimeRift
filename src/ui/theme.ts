@@ -27,7 +27,12 @@ export function fitWidth(desired: number, margin = 40): number {
 /**
  * Extra vertical offset era scenes should add to their "just below the HUD" content row.
  * Portrait's HUD is a taller two-row bar (see EraHUD) and its wrapped goal text can run to
- * 2-3 lines, so anything placed right under it needs to move down to stay clear.
+ * 2 lines, so anything placed right under it needs to move down to stay clear. Kept at 130
+ * deliberately, not bumped to fit the HUD bar's absolute worst case (~175px, when the goal
+ * banner wraps to 2 full lines): several eras (Moon, Flight) stack enough fixed-offset
+ * content between here and their bottom-anchored submit button that a blanket increase ran
+ * the submit button straight into their gauges. Scenes whose first element sits close to
+ * this value handle the rare 2-line-goal case locally instead (see VikingsEraScene).
  */
 export const TOP_SHIFT = IS_PORTRAIT ? 130 : 0;
 

@@ -66,31 +66,36 @@ export class RevolutionEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Rotate the wheel to decode all 3 secret messages.');
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 70 + TOP_SHIFT, '', {
+    // Cleared against the HUD's actual goal-banner bottom (see CastleEraScene for why a
+    // fixed offset isn't enough on the wide desktop canvas).
+    this.roundText = this.add.text(GAME_WIDTH / 2, Math.max(60 + TOP_SHIFT, this.hud.goalBottom + 14), '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
       align: 'center',
-      wordWrap: { width: fitWidth(700) },
-    }).setOrigin(0.5);
+      wordWrap: { width: fitWidth(700), useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
 
-    this.cipherText = this.add.text(GAME_WIDTH / 2, 100 + TOP_SHIFT, '', {
+    // cipherText/decodedText are repositioned in startCipher()/updateShiftText() from
+    // roundText's measured height: the "Intercepted message..." hint can wrap to 2-3 lines
+    // in portrait, which collided with the fixed y's this used to have.
+    this.cipherText = this.add.text(GAME_WIDTH / 2, 0, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.danger,
       align: 'center',
-      wordWrap: { width: fitWidth(700) },
+      wordWrap: { width: fitWidth(700), useAdvancedWrap: true },
       letterSpacing: 2 as unknown as number,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 0);
 
-    this.decodedText = this.add.text(GAME_WIDTH / 2, 136 + TOP_SHIFT, '', {
+    this.decodedText = this.add.text(GAME_WIDTH / 2, 0, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.success,
       align: 'center',
-      wordWrap: { width: fitWidth(700) },
+      wordWrap: { width: fitWidth(700), useAdvancedWrap: true },
       letterSpacing: 2 as unknown as number,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 0);
 
     this.drawDial();
 
@@ -144,7 +149,7 @@ export class RevolutionEraScene extends Phaser.Scene {
       const rad = Phaser.Math.DegToRad((i * 360) / 26 - 90);
       const lx = DIAL_X + Math.cos(rad) * (DIAL_R - 20);
       const ly = DIAL_Y + Math.sin(rad) * (DIAL_R - 20);
-      this.add.text(lx, ly, String.fromCharCode(65 + i), { fontFamily: FONT_FAMILY, fontSize: '11px', color: PALETTE.textMuted }).setOrigin(0.5);
+      this.add.text(lx, ly, String.fromCharCode(65 + i), { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
     }
 
     this.needle = this.add.graphics();
@@ -181,12 +186,14 @@ export class RevolutionEraScene extends Phaser.Scene {
     this.shiftText.setText(`Shift: ${this.shift}`);
     const challenge = this.ciphers[this.index];
     this.decodedText.setText(caesarDecode(challenge.ciphertext, this.shift));
+    this.decodedText.setY(this.cipherText.y + this.cipherText.displayHeight + 8);
   }
 
   private startCipher(): void {
     const challenge = this.ciphers[this.index];
     this.roundText.setText(`Intercepted message ${this.index + 1} of ${CIPHER_COUNT} — ${challenge.hint}`);
     this.cipherText.setText(challenge.ciphertext);
+    this.cipherText.setY(this.roundText.y + this.roundText.displayHeight + 10);
     this.updateShiftText();
     this.hints = new HintTracker([
       { level: 1, text: 'Rotate the wheel — watch the green preview text below the code.' },

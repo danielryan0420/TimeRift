@@ -141,6 +141,9 @@ export class RomeEraScene extends Phaser.Scene {
     this.attempt = [];
     this.roundText.setText(`Lock ${this.round + 1} of ${ROUNDS.length}`);
     this.targetText.setText(`Build the Roman numeral for the number ${this.puzzle.target}.`);
+    // Repositioned from targetText's measured height: at 3-digit targets this wraps to 2
+    // lines in portrait and used to land only ~3px above the fixed-y attemptText below it.
+    this.attemptText.setY(this.targetText.y + this.targetText.displayHeight + 20 + this.attemptText.displayHeight / 2);
     this.updateAttemptText();
     this.hints = new HintTracker([
       { level: 1, text: `It uses ${toRoman(this.puzzle.target).length} symbols.` },

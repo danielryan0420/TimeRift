@@ -7,7 +7,7 @@ import { EraHUD } from '../ui/HUD';
 import { createButton } from '../ui/GameButton';
 import { showHowToPlayCard } from '../ui/HowToPlayCard';
 import { burstError, burstSuccess } from '../ui/particles';
-import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, TOP_SHIFT, PALETTE } from '../ui/theme';
+import { ERA_THEME, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, TOP_SHIFT, PALETTE, fitWidth } from '../ui/theme';
 import { skyGradient } from '../ui/parallax';
 import { sfx } from '../audio/SoundManager';
 import { portalIn, portalOut } from '../ui/PortalTransition';
@@ -70,17 +70,26 @@ export class FlorenceEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Drag the focal line to the golden ratio spot on all 3 canvases.');
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
+    // Cleared against the HUD's actual goal-banner bottom (see CastleEraScene for why a
+    // fixed offset isn't enough on the wide desktop canvas).
+    this.roundText = this.add.text(GAME_WIDTH / 2, Math.max(66 + TOP_SHIFT, this.hud.goalBottom + 14), '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 0);
 
-    this.subjectText = this.add.text(GAME_WIDTH / 2, 98 + TOP_SHIFT, '', {
+    // Was missing wordWrap entirely: "Place the focal line for the courtyard mural using
+    // the golden ratio." at 19px measures ~770px wide with no wrap, more than the whole
+    // 440px portrait canvas, and ran off both edges. Also repositioned from roundText's
+    // measured height instead of a fixed y, since roundText is now a single short line but
+    // this one still needs room to wrap to 2 lines without colliding.
+    this.subjectText = this.add.text(GAME_WIDTH / 2, 0, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
-    }).setOrigin(0.5);
+      align: 'center',
+      wordWrap: { width: fitWidth(640), useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
 
     this.line = this.add.graphics();
     this.handle = this.add.circle(0, FRAME_Y - 18, 14, 0xb5422e).setStrokeStyle(3, 0xffffff, 0.6)
@@ -143,6 +152,7 @@ export class FlorenceEraScene extends Phaser.Scene {
     const challenge = this.canvases[this.index];
     this.roundText.setText(`Canvas ${this.index + 1} of ${CANVAS_COUNT}`);
     this.subjectText.setText(`Place the focal line for ${challenge.subject} using the golden ratio.`);
+    this.subjectText.setY(this.roundText.y + this.roundText.displayHeight + 8);
     this.hints = new HintTracker([
       { level: 1, text: `The golden ratio splits a span of ${challenge.widthPx}px so the whole is to the long part as the long part is to the short part.` },
       { level: 2, text: `Aim for about ${Math.round(challenge.targetXPx)}px from the left edge.` },

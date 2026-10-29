@@ -89,9 +89,13 @@ export class CastleEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Adjust the counterweight and angle to land inside the green zone, 3 times. 🔬 A heavier counterweight and a longer swing throw the rock farther.');
+    this.hud.setGoal('Land inside the green zone 3 times.');
 
-    this.targetText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
+    // Cleared against the HUD's actual goal-banner bottom, not just a fixed offset: on the
+    // wide desktop canvas the goal banner rarely wraps, but as a left-aligned pill it still
+    // shares the same row as this centered text at the old fixed y, with nothing stopping
+    // them from overlapping.
+    this.targetText = this.add.text(GAME_WIDTH / 2, Math.max(76 + TOP_SHIFT, this.hud.goalBottom + 14), '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
@@ -167,8 +171,10 @@ export class CastleEraScene extends Phaser.Scene {
     this.wallMarker = this.add.rectangle(FIELD_X + FIELD_W, FIELD_Y - 50, 24, 110, 0x7a7a7a).setStrokeStyle(2, 0xffffff, 0.3);
     this.projectile = this.add.circle(FIELD_X, FIELD_Y - 10, 8, 0x3a3a3a, 1);
 
-    this.add.text(FIELD_X - 20, FIELD_Y + 20, '0m', { fontFamily: FONT_FAMILY, fontSize: '12px', color: PALETTE.textMuted }).setOrigin(0.5, 0);
-    this.add.text(FIELD_X + FIELD_W, FIELD_Y + 20, `${MAX_RANGE_M}m`, { fontFamily: FONT_FAMILY, fontSize: '12px', color: PALETTE.textMuted }).setOrigin(0.5, 0);
+    // Left-anchored (origin.x = 0), not centered: centering "0m" on FIELD_X - 20 ran a few
+    // px off the left edge of the canvas once this label's font grew to a readable 16px.
+    this.add.text(Math.max(4, FIELD_X - 20), FIELD_Y + 20, '0m', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0, 0);
+    this.add.text(FIELD_X + FIELD_W, FIELD_Y + 20, `${MAX_RANGE_M}m`, { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5, 0);
   }
 
   private metersToX(m: number): number {
@@ -182,8 +188,10 @@ export class CastleEraScene extends Phaser.Scene {
       this.add.text(sliderBaseX + SLIDER_W / 2, CW_SLIDER_Y - 36, 'Counterweight', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
       this.add.text(sliderBaseX + SLIDER_W / 2, ANGLE_SLIDER_Y - 36, 'Release Angle', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
     } else {
-      this.add.text(CW_SLIDER_X - 10, CW_SLIDER_Y, 'Counterweight', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0, 0.5);
-      this.add.text(CW_SLIDER_X - 10, ANGLE_SLIDER_Y, 'Release Angle', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0, 0.5);
+      // Right-anchored (origin.x = 1) so a larger, readable font grows left away from the
+      // slider track instead of growing right into the handle's starting position.
+      this.add.text(CW_SLIDER_X - 14, CW_SLIDER_Y, 'Counterweight', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
+      this.add.text(CW_SLIDER_X - 14, ANGLE_SLIDER_Y, 'Release Angle', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
     }
 
     const cwTrack = this.add.rectangle(sliderBaseX + SLIDER_W / 2, CW_SLIDER_Y, SLIDER_W, 8, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.25).setInteractive();
@@ -198,8 +206,8 @@ export class CastleEraScene extends Phaser.Scene {
       this.cwLabel = this.add.text(sliderBaseX + SLIDER_W / 2, CW_SLIDER_Y + 26, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
       this.angleLabel = this.add.text(sliderBaseX + SLIDER_W / 2, ANGLE_SLIDER_Y + 26, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0.5);
     } else {
-      this.cwLabel = this.add.text(sliderBaseX + SLIDER_W + 60, CW_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.gold }).setOrigin(0, 0.5);
-      this.angleLabel = this.add.text(sliderBaseX + SLIDER_W + 60, ANGLE_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.gold }).setOrigin(0, 0.5);
+      this.cwLabel = this.add.text(sliderBaseX + SLIDER_W + 60, CW_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0, 0.5);
+      this.angleLabel = this.add.text(sliderBaseX + SLIDER_W + 60, ANGLE_SLIDER_Y, '', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.gold }).setOrigin(0, 0.5);
     }
 
     this.cwHandle.on('pointerdown', () => { this.draggingSlider = 'cw'; });

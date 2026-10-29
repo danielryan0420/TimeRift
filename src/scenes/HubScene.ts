@@ -41,15 +41,18 @@ const LANDSCAPE_BOSS_NODE_POS = { x: 900, y: 470 };
 export const NODE_RADIUS = IS_PORTRAIT ? 26 : 34;
 export const BOSS_RADIUS = IS_PORTRAIT ? 30 : 40;
 
-/** A zigzag path down the screen: horizontal offset keeps consecutive nodes well apart even with a tight vertical step. */
+/**
+ * A zigzag path down the screen. Columns cycle through 3 x-positions (not 2) so that a node's
+ * name label (below it) never shares a column with the node 2 steps later — with only 2
+ * columns those two labels/tags landed close enough in y to overlap at 16px+ font sizes.
+ */
 function buildPortraitPositions(): { nodes: Record<EraId, { x: number; y: number }>; boss: { x: number; y: number } } {
   const topY = 220;
   const dy = 62;
-  const leftX = GAME_WIDTH * 0.28;
-  const rightX = GAME_WIDTH * 0.72;
+  const columns = [GAME_WIDTH * 0.18, GAME_WIDTH / 2, GAME_WIDTH * 0.82];
   const nodes = {} as Record<EraId, { x: number; y: number }>;
   ERA_ORDER.forEach((era, i) => {
-    nodes[era] = { x: i % 2 === 0 ? leftX : rightX, y: topY + i * dy };
+    nodes[era] = { x: columns[i % columns.length], y: topY + i * dy };
   });
   const boss = { x: GAME_WIDTH / 2, y: topY + ERA_ORDER.length * dy };
   return { nodes, boss };
@@ -85,29 +88,36 @@ export class HubScene extends Phaser.Scene {
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x120a24).setOrigin(0);
     starField(this, 90);
 
+    // Stacked from measured heights, not fixed y's: a long profile name wraps the welcome
+    // line to 2 lines in portrait (headerWrap is only ~220px to leave room for the Museum/
+    // Switch buttons), which used to run straight into the star count line below it.
     const headerWrap = IS_PORTRAIT ? GAME_WIDTH - 220 : fitWidth(700);
-    this.add.text(16, 68, `Welcome back, ${profile.name}!`, {
+    let headerY = 64;
+    const welcomeText = this.add.text(16, headerY, `Welcome back, ${profile.name}!`, {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
-      wordWrap: { width: headerWrap },
+      wordWrap: { width: headerWrap, useAdvancedWrap: true },
     });
-    this.add.text(16, 92, `⭐ ${totalStars(profile)} / ${ERA_ORDER.length * 3}`, {
+    headerY += welcomeText.displayHeight + 4;
+
+    const starsText = this.add.text(16, headerY, `⭐ ${totalStars(profile)} / ${ERA_ORDER.length * 3}`, {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.gold,
-      wordWrap: { width: headerWrap },
+      wordWrap: { width: headerWrap, useAdvancedWrap: true },
     });
+    headerY += starsText.displayHeight + 4;
 
     const eraCount = ERA_ORDER.filter((era) => profile.eraProgress[era].completed).length;
     const goalLine = isBossUnlocked(profile)
       ? '🏺 All eras mended — the Chronarch awaits!'
       : `🏺 ${eraCount} / ${ERA_ORDER.length} eras mended — tap a glowing portal to continue!`;
-    this.add.text(16, 116, goalLine, {
+    this.add.text(16, headerY, goalLine, {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
-      wordWrap: { width: headerWrap },
+      wordWrap: { width: headerWrap, useAdvancedWrap: true },
     });
 
     createButton(this, GAME_WIDTH - 110, 40, '🏺 Museum', () => this.scene.start('Museum'), { width: 170, height: 48 });
@@ -182,21 +192,21 @@ export class HubScene extends Phaser.Scene {
 
     this.add.text(pos.x, pos.y + r + 10, theme.name, {
       fontFamily: FONT_FAMILY,
-      fontSize: '13px',
+      fontSize: '16px',
       color: unlocked ? PALETTE.textLight : PALETTE.textMuted,
       align: 'center',
-      wordWrap: { width: 100 },
+      wordWrap: { width: 100, useAdvancedWrap: true },
     }).setOrigin(0.5, 0);
 
     if (progress.completed) {
-      this.add.text(pos.x, pos.y - r - 12, '⭐'.repeat(progress.stars) + '☆'.repeat(3 - progress.stars), {
-        fontSize: '14px',
+      this.add.text(pos.x, pos.y - r - 14, '⭐'.repeat(progress.stars) + '☆'.repeat(3 - progress.stars), {
+        fontSize: '16px',
       }).setOrigin(0.5);
     } else if (isNextUp) {
-      const tagY = pos.y - r - 18;
+      const tagY = pos.y - r - 20;
       const tag = this.add.text(pos.x, tagY, '👉 Start here!', {
         fontFamily: FONT_FAMILY,
-        fontSize: '13px',
+        fontSize: '16px',
         color: PALETTE.gold,
         align: 'center',
       }).setOrigin(0.5);
@@ -232,10 +242,10 @@ export class HubScene extends Phaser.Scene {
     this.add.text(pos.x, pos.y, defeated ? '🏆' : unlocked ? '👹' : '🔒', { fontSize: IS_PORTRAIT ? '24px' : '30px' }).setOrigin(0.5);
     this.add.text(pos.x, pos.y + r + 10, 'Final Showdown', {
       fontFamily: FONT_FAMILY,
-      fontSize: '13px',
+      fontSize: '16px',
       color: unlocked ? PALETTE.textLight : PALETTE.textMuted,
       align: 'center',
-      wordWrap: { width: 110 },
+      wordWrap: { width: 130, useAdvancedWrap: true },
     }).setOrigin(0.5, 0);
 
     circle.on('pointerup', () => {

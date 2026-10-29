@@ -31,6 +31,7 @@ export class VikingsEraScene extends Phaser.Scene {
   private hud!: EraHUD;
   private dragging = false;
   private locked = false;
+  private polarisLabelY = 0;
 
   private needle!: Phaser.GameObjects.Graphics;
   private clueText!: Phaser.GameObjects.Text;
@@ -64,20 +65,24 @@ export class VikingsEraScene extends Phaser.Scene {
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
     this.hud.setGoal('Use Polaris to steer the right heading on all 4 legs of the voyage.');
+    this.drawPolaris();
 
-    this.legText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
+    this.legText = this.add.text(GAME_WIDTH / 2, this.polarisLabelY + 60, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
-    this.clueText = this.add.text(GAME_WIDTH / 2, 98 + TOP_SHIFT, '', {
+    // Top-anchored and repositioned in startLeg() from legText's measured height: some
+    // clues ("Polaris is NN degrees to starboard (right).") wrap to 2 lines in portrait,
+    // which collided with the fixed-offset legText above it at the old static y.
+    this.clueText = this.add.text(GAME_WIDTH / 2, 0, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: fitWidth(640) },
-    }).setOrigin(0.5);
+      wordWrap: { width: fitWidth(640), useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
 
     this.drawDial();
 
@@ -110,13 +115,22 @@ export class VikingsEraScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Cleared against the HUD's actual goal-banner bottom, so called after hud.setGoal() runs
+   * (see CastleEraScene for why a fixed offset isn't enough on the wide desktop canvas) —
+   * split out of drawBackground(), which used to run before the HUD existed.
+   */
+  private drawPolaris(): void {
+    this.polarisLabelY = Math.max(50 + TOP_SHIFT, this.hud.goalBottom + 14);
+    this.add.circle(GAME_WIDTH / 2, this.polarisLabelY + 30, 5, 0xffffff, 1);
+    this.add.text(GAME_WIDTH / 2, this.polarisLabelY + 30, '★', { fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, this.polarisLabelY, 'Polaris', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
+  }
+
   private drawBackground(): void {
     const theme = ERA_THEME.vikings;
     skyGradient(this, theme.skyTop, theme.skyBottom);
     starField(this, 70, 300);
-    this.add.circle(GAME_WIDTH / 2, 60 + TOP_SHIFT, 5, 0xffffff, 1);
-    this.add.text(GAME_WIDTH / 2, 60 + TOP_SHIFT, '★', { fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
-    this.add.text(GAME_WIDTH / 2, 34 + TOP_SHIFT, 'Polaris', { fontFamily: FONT_FAMILY, fontSize: '12px', color: PALETTE.textMuted }).setOrigin(0.5);
 
     const sea = this.add.graphics();
     sea.fillStyle(theme.ground, 1);
@@ -184,6 +198,7 @@ export class VikingsEraScene extends Phaser.Scene {
     const leg = this.legs[this.legIndex];
     this.legText.setText(`Leg ${this.legIndex + 1} of ${LEG_COUNT}`);
     this.clueText.setText(leg.clue);
+    this.clueText.setY(this.legText.y + this.legText.displayHeight / 2 + 10);
     this.updateBearingText();
     this.hints = new HintTracker([
       { level: 1, text: 'Drag inside the dial to rotate the bow.' },

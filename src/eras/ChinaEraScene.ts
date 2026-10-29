@@ -4,8 +4,8 @@ import {
   checkGood,
   generateStops,
   GOOD_INFO,
+  GOOD_STATS,
   GOODS,
-  type CaravanRequest,
   type CaravanStop,
   type Good,
 } from '../core/puzzles/china';
@@ -25,19 +25,20 @@ import type { EraCompleteData } from '../scenes/EraCompleteScene';
 const TOTAL_STOPS = 6;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 75 };
 
-const REQUEST_TEXT: Record<CaravanRequest, string> = {
-  'scholar-baghdad': 'A scholar in Baghdad wants a light material for recording knowledge.',
-  'noble-rome': 'A noble in Rome wants brilliant cloth for a ceremonial robe.',
-  'trader-persia': 'A trader in Persia wants a warming drink that survives the long road dried.',
-  'merchant-venice': "A merchant in Venice wants delicate dishware that won't rust or rot.",
-};
+function requestText(stop: CaravanStop): string {
+  return `Needs cargo under ${stop.maxWeightKg} kg per bundle, worth ${stop.minValueSilver}+ silver.`;
+}
 
-const REQUEST_HINT: Record<CaravanRequest, string> = {
-  'scholar-baghdad': 'Think about something thin you can write on...',
-  'noble-rome': 'Think about something woven from a shimmering thread...',
-  'trader-persia': 'Think about dried leaves brewed into a drink...',
-  'merchant-venice': 'Think about fine, fired clay...',
-};
+/** Points at the reasoning (check weight, then value, against the reference table) without naming the good. */
+function requestHint(stop: CaravanStop): string {
+  const tooHeavy = GOODS.filter((g) => GOOD_STATS[g].weightKg > stop.maxWeightKg);
+  if (tooHeavy.length > 0) {
+    return `${tooHeavy.map((g) => GOOD_INFO[g].label).join(' and ')} ${tooHeavy.length > 1 ? 'are' : 'is'} too heavy for this bundle limit — check the reference table.`;
+  }
+  return 'Check which good is valuable enough to meet the silver price — look at the reference table.';
+}
+
+const STATS_REFERENCE = GOODS.map((g) => `${GOOD_INFO[g].label} ${GOOD_STATS[g].weightKg}kg/${GOOD_STATS[g].valueSilver}💰`).join('   •   ');
 
 export class ChinaEraScene extends Phaser.Scene {
   private stops: CaravanStop[] = [];
@@ -78,7 +79,7 @@ export class ChinaEraScene extends Phaser.Scene {
     });
     this.hud.setGoal('Load the right trade good for each of the 6 caravan stops.');
 
-    this.add.text(GAME_WIDTH / 2, 100 + TOP_SHIFT, 'Load the right trade good for each stop on the road!', {
+    this.add.text(GAME_WIDTH / 2, 100 + TOP_SHIFT, 'Match the weight limit and silver price to the right good!', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
@@ -94,8 +95,16 @@ export class ChinaEraScene extends Phaser.Scene {
       fontSize: '19px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: panelW - 60 },
+      wordWrap: { width: panelW - 60, useAdvancedWrap: true },
     }).setOrigin(0.5);
+
+    this.add.text(GAME_WIDTH / 2, 230 + TOP_SHIFT, `📋 ${STATS_REFERENCE}`, {
+      fontFamily: FONT_FAMILY,
+      fontSize: '16px',
+      color: PALETTE.gold,
+      align: 'center',
+      wordWrap: { width: panelW, useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
 
     this.drawGoodButtons();
     this.drawProgressTracker();
@@ -108,12 +117,12 @@ export class ChinaEraScene extends Phaser.Scene {
   private showIntroCards(): void {
     showHowToPlayCard(this, {
       title: 'The Silk Road Caravan',
-      line: 'Read what each merchant wants, then tap the trade good that best matches their request.',
+      line: `Each merchant states a weight limit and a minimum price in silver. Check the reference table (${STATS_REFERENCE}) and tap the one good that fits both.`,
       quiz: {
-        question: 'Quick check: which good would a scholar who wants something to write on want?',
+        question: 'Quick check: a merchant needs cargo under 2 kg that is worth at least 10 silver. Which good fits?',
         options: [
           { label: 'Paper', correct: true },
-          { label: 'Silk' },
+          { label: 'Porcelain' },
           { label: 'Tea' },
         ],
       },
@@ -176,7 +185,7 @@ export class ChinaEraScene extends Phaser.Scene {
         y,
         `${GOOD_INFO[good].label}`,
         () => this.chooseGood(good),
-        { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 17 },
+        { width, height: 56, fontSize: IS_PORTRAIT ? 16 : 17 },
 
       );
     });
@@ -194,9 +203,9 @@ export class ChinaEraScene extends Phaser.Scene {
 
   private showCurrentStop(): void {
     const stop = this.stops[this.index];
-    this.requestText.setText(`Stop ${this.index + 1} of ${TOTAL_STOPS}: ${REQUEST_TEXT[stop.request]}`);
+    this.requestText.setText(`Stop ${this.index + 1} of ${TOTAL_STOPS}: ${requestText(stop)}`);
     this.hints = new HintTracker([
-      { level: 1, text: REQUEST_HINT[stop.request] },
+      { level: 1, text: requestHint(stop) },
       { level: 2, text: `Offer the ${GOOD_INFO[stop.correctGood].label}!` },
     ]);
   }

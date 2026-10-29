@@ -23,7 +23,7 @@ import {
 } from '../core/puzzles/boss';
 import { checkAnswer, generateBlocks, TOOL_INFO, TOOLS, type BlockChallenge } from '../core/puzzles/egypt';
 import { checkLock, generateLockPuzzle, type LockPuzzle } from '../core/puzzles/rome';
-import { checkGood, generateStops, GOOD_INFO, GOODS, type CaravanStop } from '../core/puzzles/china';
+import { checkGood, generateStops, GOOD_INFO, GOOD_STATS, GOODS, type CaravanStop } from '../core/puzzles/china';
 import { evaluateLeg, generateVoyage, type VoyageLeg } from '../core/puzzles/vikings';
 import { evaluateShot, generateTargets, type SiegeTarget } from '../core/puzzles/castle';
 import { evaluatePlacement, generateCanvases, type CanvasChallenge } from '../core/puzzles/florence';
@@ -45,7 +45,10 @@ import { showToast } from '../ui/toast';
 
 const VILLAIN_X = GAME_WIDTH / 2;
 const VILLAIN_Y = 170 + TOP_SHIFT;
-const PUZZLE_Y = 300 + TOP_SHIFT;
+// 340 (not 300): howToText above this can wrap to 2 lines ("Drag the slider into the green
+// zone, then Engage.") at the same time as a round's own instruction text 2-lines too (e.g.
+// industrial's long machine/RPM readout) — 300 let those collide by ~30px in portrait.
+const PUZZLE_Y = 340 + TOP_SHIFT;
 /** Round sliders (castle/industrial/moon/flight) share this narrower-on-portrait width. */
 const ROUND_SLIDER_W = IS_PORTRAIT ? GAME_WIDTH - 80 : 400;
 const ROUND_SLIDER_X = GAME_WIDTH / 2 - ROUND_SLIDER_W / 2;
@@ -163,21 +166,24 @@ export class BossEraScene extends Phaser.Scene {
       fontSize: '20px',
     }).setOrigin(0.5);
 
-    this.roundText = this.add.text(GAME_WIDTH / 2, 222 + TOP_SHIFT, '', {
+    this.roundText = this.add.text(GAME_WIDTH / 2, 215 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: fitWidth(760) },
-    }).setOrigin(0.5);
+      wordWrap: { width: fitWidth(760), useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
 
-    this.howToText = this.add.text(GAME_WIDTH / 2, 256 + TOP_SHIFT, '', {
+    // Repositioned in startCurrentRound() from roundText's measured height: some howTo
+    // lines ("Drag inside the wheel until the green preview reads clearly.") wrap to 2
+    // lines in portrait and used to sit only ~4px below roundText at the old fixed y's.
+    this.howToText = this.add.text(GAME_WIDTH / 2, 0, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
       align: 'center',
-      wordWrap: { width: fitWidth(700) },
-    }).setOrigin(0.5);
+      wordWrap: { width: fitWidth(700), useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
 
     this.puzzleLayer = this.add.container(0, 0);
 
@@ -264,6 +270,7 @@ export class BossEraScene extends Phaser.Scene {
     const seed = Math.floor(Math.random() * 1e9);
     this.roundText.setText(`Trial ${this.bossState.roundIndex + 1} of ${BOSS_MAX_HP}: ${ERA_LABEL[era]}`);
     this.howToText.setText(BOSS_ROUND_HOWTO[era]);
+    this.howToText.setY(this.roundText.y + this.roundText.displayHeight + 8);
     this.hud.setGoal(BOSS_ROUND_GOAL[era]);
 
     switch (era) {
@@ -354,9 +361,12 @@ export class BossEraScene extends Phaser.Scene {
   private startEgyptRound(seed: number): void {
     this.egyptBlock = generateBlocks(1, seed)[0];
     this.hints = new HintTracker(egyptBossHints(this.egyptBlock));
-    const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, 'Choose the right tool to break the Chronarch\'s stone shield!', {
-      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600) },
-    }).setOrigin(0.5);
+    const text = this.add.text(
+      GAME_WIDTH / 2,
+      PUZZLE_Y,
+      `The Chronarch's shield block weighs ${this.egyptBlock.weightKg} kg and must move ${this.egyptBlock.distanceM} m. Choose the right tool!`,
+      { fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600), useAdvancedWrap: true } },
+    ).setOrigin(0.5);
     this.puzzleLayer.add(text);
     const n = TOOLS.length;
     const width = IS_PORTRAIT ? Math.min(150, (GAME_WIDTH - 32 - 10 * (n - 1)) / n) : 150;
@@ -365,7 +375,7 @@ export class BossEraScene extends Phaser.Scene {
     TOOLS.forEach((tool, i) => {
       const btn = createButton(this, startX + i * spacing, PUZZLE_Y + 80, TOOL_INFO[tool].label, () => {
         this.resolveRound(checkAnswer(this.egyptBlock!, tool));
-      }, { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 22 });
+      }, { width, height: 56, fontSize: IS_PORTRAIT ? 16 : 22 });
       this.puzzleLayer.add(btn);
     });
   }
@@ -414,10 +424,19 @@ export class BossEraScene extends Phaser.Scene {
   private startChinaRound(seed: number): void {
     this.chinaStop = generateStops(1, seed)[0];
     this.hints = new HintTracker(chinaBossHints(this.chinaStop));
-    const text = this.add.text(GAME_WIDTH / 2, PUZZLE_Y, "Give the Chronarch's caravan the good it truly demands!", {
-      fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600) },
-    }).setOrigin(0.5);
-    this.puzzleLayer.add(text);
+    const text = this.add.text(
+      GAME_WIDTH / 2,
+      PUZZLE_Y - 14,
+      `Needs cargo under ${this.chinaStop.maxWeightKg} kg, worth ${this.chinaStop.minValueSilver}+ silver.`,
+      { fontFamily: FONT_FAMILY, fontSize: '17px', color: PALETTE.textLight, align: 'center', wordWrap: { width: fitWidth(600), useAdvancedWrap: true } },
+    ).setOrigin(0.5);
+    const reference = this.add.text(
+      GAME_WIDTH / 2,
+      PUZZLE_Y + 18,
+      GOODS.map((g) => `${GOOD_INFO[g].label} ${GOOD_STATS[g].weightKg}kg/${GOOD_STATS[g].valueSilver}💰`).join('  •  '),
+      { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.gold, align: 'center', wordWrap: { width: fitWidth(650), useAdvancedWrap: true } },
+    ).setOrigin(0.5, 0);
+    this.puzzleLayer.add([text, reference]);
     const n = GOODS.length;
     const width = IS_PORTRAIT ? Math.min(150, (GAME_WIDTH - 32 - 10 * (n - 1)) / n) : 150;
     const spacing = width + 10;
@@ -425,7 +444,7 @@ export class BossEraScene extends Phaser.Scene {
     GOODS.forEach((good, i) => {
       const btn = createButton(this, startX + i * spacing, PUZZLE_Y + 80, GOOD_INFO[good].label, () => {
         this.resolveRound(checkGood(this.chinaStop!, good));
-      }, { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 22 });
+      }, { width, height: 56, fontSize: IS_PORTRAIT ? 16 : 22 });
       this.puzzleLayer.add(btn);
     });
   }

@@ -28,6 +28,14 @@ export interface HowToPlayOptions {
  * so taps can't fall through to buttons underneath while the card is up.
  */
 export function showHowToPlayCard(scene: Phaser.Scene, opts: HowToPlayOptions): void {
+  // Escape hatch for automated screenshot/E2E tooling only (see scripts/screenshot-check.mjs)
+  // so it can capture the puzzle underneath without having to blind-tap through every card's
+  // quiz, which varies in height per era. Never set by the game itself.
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('timerift:e2eSkipCards') === '1') {
+    opts.onDismiss();
+    return;
+  }
+
   const depth = 5000;
   const panelW = fitWidth(640);
 

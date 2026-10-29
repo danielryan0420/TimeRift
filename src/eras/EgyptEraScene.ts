@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameState, GAME_STATE_KEY } from '../state/GameState';
-import { generateBlocks, checkAnswer, TOOL_INFO, TOOLS, type Tool, type BlockChallenge, type BlockSituation } from '../core/puzzles/egypt';
+import { generateBlocks, checkAnswer, TOOL_INFO, TOOLS, type Tool, type BlockChallenge } from '../core/puzzles/egypt';
 import type { EraAttemptResult } from '../core/types';
 import { HintTracker } from '../core/hints';
 import { EGYPT_TUTORIAL_STEPS, isTutorialPending } from '../core/onboarding';
@@ -18,19 +18,17 @@ import type { EraCompleteData } from '../scenes/EraCompleteScene';
 const TOTAL_BLOCKS = 6;
 const STAR_OPTS = { mistakeLimit: 1, timeTargetSeconds: 75 };
 
-const SITUATION_TEXT: Record<BlockSituation, string> = {
-  'steep-rise': 'This block must climb a steep slope to the next level.',
-  'tight-gap': 'This block is jammed sideways in a tight gap between stones.',
-  'long-haul': 'This block has to be dragged a long way across hot, dry sand.',
-  'final-lift': 'This block just needs one last careful nudge into its slot.',
-};
+function situationText(block: BlockChallenge): string {
+  return `This block weighs ${block.weightKg} kg and must move ${block.distanceM} m to its spot.`;
+}
 
-const SITUATION_HINT: Record<BlockSituation, string> = {
-  'steep-rise': 'Think about something long and gently sloped...',
-  'tight-gap': 'Think about something short you can pry with...',
-  'long-haul': 'Think about reducing friction on sand...',
-  'final-lift': 'Think about something short you can pry with...',
-};
+/** Nudges the player toward the reasoning (distance first, then weight) without giving the tool away. */
+function situationHint(block: BlockChallenge): string {
+  if (block.distanceM > 40) return 'That is a long haul — think about cutting friction on the sand...';
+  if (block.weightKg > 900) return 'That is very heavy for a short move — think about mechanical advantage...';
+  if (block.weightKg > 500) return 'Medium weight, short move — think about something short you can pry with...';
+  return 'Light enough for a short move — the simplest drag will do...';
+}
 
 export class EgyptEraScene extends Phaser.Scene {
   private blocks: BlockChallenge[] = [];
@@ -191,7 +189,7 @@ export class EgyptEraScene extends Phaser.Scene {
         y,
         `${TOOL_INFO[tool].label}`,
         () => this.chooseTool(tool),
-        { width, height: 56, fontSize: IS_PORTRAIT ? 14 : 17 },
+        { width, height: 56, fontSize: IS_PORTRAIT ? 16 : 17 },
       );
     });
   }
@@ -208,9 +206,9 @@ export class EgyptEraScene extends Phaser.Scene {
 
   private showCurrentBlock(): void {
     const block = this.blocks[this.index];
-    this.situationText.setText(`Block ${this.index + 1} of ${TOTAL_BLOCKS}: ${SITUATION_TEXT[block.situation]}`);
+    this.situationText.setText(`Block ${this.index + 1} of ${TOTAL_BLOCKS}: ${situationText(block)}`);
     this.hints = new HintTracker([
-      { level: 1, text: SITUATION_HINT[block.situation] },
+      { level: 1, text: situationHint(block) },
       { level: 2, text: `Use the ${TOOL_INFO[block.correctTool].label}!` },
     ]);
   }

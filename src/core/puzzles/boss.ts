@@ -1,8 +1,8 @@
 import type { EraId } from '../types';
 import { ERA_ORDER } from '../types';
 import type { HintDef } from '../hints';
-import { TOOL_INFO, type BlockChallenge, type BlockSituation } from './egypt';
-import { GOOD_INFO, type CaravanRequest, type CaravanStop } from './china';
+import { TOOL_INFO, type BlockChallenge } from './egypt';
+import { GOOD_INFO, type CaravanStop } from './china';
 import type { VoyageLeg } from './vikings';
 import type { SiegeTarget } from './castle';
 import type { CanvasChallenge } from './florence';
@@ -83,19 +83,16 @@ export const BOSS_ROUND_GOAL: Record<EraId, string> = {
   moon: 'Drag into the green zone to reach escape velocity safely.',
 };
 
-const BOSS_EGYPT_SITUATION_HINT: Record<BlockSituation, string> = {
-  'steep-rise': 'Think about something long and gently sloped...',
-  'tight-gap': 'Think about something short you can pry with...',
-  'long-haul': 'Think about reducing friction on sand...',
-  'final-lift': 'Think about something short you can pry with...',
-};
+function bossEgyptHint(block: BlockChallenge): string {
+  if (block.distanceM > 40) return 'That is a long haul — think about cutting friction on the sand...';
+  if (block.weightKg > 900) return 'That is very heavy for a short move — think about mechanical advantage...';
+  if (block.weightKg > 500) return 'Medium weight, short move — think about something short you can pry with...';
+  return 'Light enough for a short move — the simplest drag will do...';
+}
 
-const BOSS_CHINA_REQUEST_HINT: Record<CaravanRequest, string> = {
-  'scholar-baghdad': 'Think about something thin you can write on...',
-  'noble-rome': 'Think about something woven from a shimmering thread...',
-  'trader-persia': 'Think about dried leaves brewed into a drink...',
-  'merchant-venice': 'Think about fine, fired clay...',
-};
+function bossChinaHint(stop: CaravanStop): string {
+  return `Check the reference table: needs cargo under ${stop.maxWeightKg} kg, worth ${stop.minValueSilver}+ silver.`;
+}
 
 /**
  * Two-level hints for each boss trial: a conceptual nudge first, then the concrete answer.
@@ -104,7 +101,7 @@ const BOSS_CHINA_REQUEST_HINT: Record<CaravanRequest, string> = {
  */
 export function egyptBossHints(block: BlockChallenge): HintDef[] {
   return [
-    { level: 1, text: BOSS_EGYPT_SITUATION_HINT[block.situation] },
+    { level: 1, text: bossEgyptHint(block) },
     { level: 2, text: `Use the ${TOOL_INFO[block.correctTool].label}!` },
   ];
 }
@@ -118,7 +115,7 @@ export function romeBossHints(target: number): HintDef[] {
 
 export function chinaBossHints(stop: CaravanStop): HintDef[] {
   return [
-    { level: 1, text: BOSS_CHINA_REQUEST_HINT[stop.request] },
+    { level: 1, text: bossChinaHint(stop) },
     { level: 2, text: `Offer the ${GOOD_INFO[stop.correctGood].label}!` },
   ];
 }

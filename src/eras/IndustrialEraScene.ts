@@ -81,14 +81,16 @@ export class IndustrialEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Drag the driven gear slider until the needle sits in the green zone, for all 3 factory orders. 🔬 A bigger gear turns slower; a smaller gear turns faster.');
+    this.hud.setGoal('Hit the green zone for all 3 factory orders.');
 
-    this.orderText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
+    // Cleared against the HUD's actual goal-banner bottom (see CastleEraScene for why a
+    // fixed offset isn't enough on the wide desktop canvas).
+    this.orderText = this.add.text(GAME_WIDTH / 2, Math.max(66 + TOP_SHIFT, this.hud.goalBottom + 14), '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: fitWidth(700) },
+      wordWrap: { width: fitWidth(700), useAdvancedWrap: true },
     }).setOrigin(0.5);
 
     this.drawGears();
@@ -103,7 +105,7 @@ export class IndustrialEraScene extends Phaser.Scene {
 
     this.rpmText = this.add.text(GAME_WIDTH / 2, 532 + TOP_SHIFT, '', {
       fontFamily: FONT_FAMILY,
-      fontSize: '14px',
+      fontSize: '16px',
       color: PALETTE.textMuted,
     }).setOrigin(0.5);
 
@@ -200,7 +202,7 @@ export class IndustrialEraScene extends Phaser.Scene {
   }
 
   private drawRpmMeter(): void {
-    this.add.text(GAME_WIDTH / 2, METER_Y - 22, 'Output speed meter:', { fontFamily: FONT_FAMILY, fontSize: '14px', color: PALETTE.textMuted }).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, METER_Y - 22, 'Output speed meter:', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
     this.add.rectangle(SLIDER_X + SLIDER_W / 2, METER_Y, SLIDER_W, 14, 0x2a2a2a).setStrokeStyle(2, 0xffffff, 0.25);
     this.rpmNeedle = this.add.triangle(SLIDER_X, METER_Y - 16, -9, 10, 9, 10, 0, -6, 0xffd34d).setStrokeStyle(1, 0xffffff, 0.8).setDepth(2);
   }

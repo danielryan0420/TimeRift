@@ -74,9 +74,11 @@ export class FlightEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Drag the airspeed slider so the handle sits in the green zone, 3 times. 🔬 Faster wings make more lift, but go too fast and the frame can\'t take it.');
+    this.hud.setGoal('Hit the green zone 3 times.');
 
-    this.attemptText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
+    // Cleared against the HUD's actual goal-banner bottom (see CastleEraScene for why a
+    // fixed offset isn't enough on the wide desktop canvas).
+    this.attemptText = this.add.text(GAME_WIDTH / 2, Math.max(76 + TOP_SHIFT, this.hud.goalBottom + 14), '', {
       fontFamily: FONT_FAMILY,
       fontSize: '17px',
       color: PALETTE.textLight,
@@ -156,10 +158,15 @@ export class FlightEraScene extends Phaser.Scene {
   }
 
   private drawSlider(): void {
-    this.add.text(GAME_WIDTH / 2, 190 + TOP_SHIFT, 'Set the airspeed (engine throttle + headwind):', {
+    // Grouped with the slider it labels (SLIDER_Y - 90), not floating mid-stage: at the old
+    // fixed 190 + TOP_SHIFT, this text's full width (no wordWrap — also fixed here) landed
+    // squarely on top of the Flyer graphic, which sits centered on the stage above the slider.
+    this.add.text(GAME_WIDTH / 2, SLIDER_Y - 90, 'Set the airspeed (engine throttle + headwind):', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: PALETTE.textMuted,
+      align: 'center',
+      wordWrap: { width: fitWidth(640), useAdvancedWrap: true },
     }).setOrigin(0.5);
 
     const track = this.add.rectangle(SLIDER_X + SLIDER_W / 2, SLIDER_Y, SLIDER_W, 10, 0x4a3f3a).setStrokeStyle(2, 0xffffff, 0.3).setInteractive();
@@ -168,8 +175,10 @@ export class FlightEraScene extends Phaser.Scene {
 
     this.speedText = this.add.text(GAME_WIDTH / 2, 365 + TOP_SHIFT, '', { fontFamily: FONT_FAMILY, fontSize: '18px', color: PALETTE.gold }).setOrigin(0.5);
 
-    this.add.text(SLIDER_X, SLIDER_Y + 30, 'Standing still', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5);
-    this.add.text(SLIDER_X + SLIDER_W, SLIDER_Y + 30, 'Full throttle', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5, 0).setX(SLIDER_X + SLIDER_W - 35);
+    // Left-anchored (origin.x = 0) at 16px so "Standing still" grows right under the track
+    // instead of centering on SLIDER_X and running off the canvas's left edge in portrait.
+    this.add.text(SLIDER_X, SLIDER_Y + 30, 'Standing still', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0, 0.5);
+    this.add.text(SLIDER_X + SLIDER_W, SLIDER_Y + 30, 'Full throttle', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(1, 0);
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.draggingSlider || this.locked) return;

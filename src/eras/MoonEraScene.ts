@@ -93,9 +93,11 @@ export class MoonEraScene extends Phaser.Scene {
       onHint: () => this.showHint(),
       onToggleMute: (muted) => state.updateActiveProfile((p) => ({ ...p, muted })),
     });
-    this.hud.setGoal('Pick an engine and fuel load to light up both gauges green, 3 times. 🔬 More fuel adds push time, but it also adds weight to lift.');
+    this.hud.setGoal('Light up both gauges green, 3 times.');
 
-    this.missionText = this.add.text(GAME_WIDTH / 2, 76 + TOP_SHIFT, '', {
+    // Cleared against the HUD's actual goal-banner bottom (see CastleEraScene for why a
+    // fixed offset isn't enough on the wide desktop canvas).
+    this.missionText = this.add.text(GAME_WIDTH / 2, Math.max(76 + TOP_SHIFT, this.hud.goalBottom + 14), '', {
       fontFamily: FONT_FAMILY,
       fontSize: '18px',
       color: PALETTE.textLight,
@@ -167,12 +169,14 @@ export class MoonEraScene extends Phaser.Scene {
   }
 
   private drawGauges(): void {
-    this.add.text(BAR_X - 10, PUSH_BAR_Y, 'Push', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
+    this.add.text(BAR_X - 10, PUSH_BAR_Y, 'Push', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
     this.add.rectangle(BAR_X + BAR_W / 2, PUSH_BAR_Y, BAR_W, 14, 0x2a2a2a).setStrokeStyle(2, 0xffffff, 0.25);
     this.pushFill = this.add.rectangle(BAR_X, PUSH_BAR_Y, 2, 10, COLOR_DANGER).setOrigin(0, 0.5);
     drawThresholdTick(this, BAR_X, PUSH_BAR_Y, BAR_W, 1 / MAX_TWR_SCALE, 22);
 
-    this.add.text(BAR_X - 10, FUEL_BAR_Y, 'Fuel reach', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
+    // "Fuel" (not "Fuel reach") so this right-anchored label never grows past the canvas's
+    // left edge in portrait, where BAR_X sits close to x=0.
+    this.add.text(BAR_X - 10, FUEL_BAR_Y, 'Fuel', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(1, 0.5);
     this.add.rectangle(BAR_X + BAR_W / 2, FUEL_BAR_Y, BAR_W, 14, 0x2a2a2a).setStrokeStyle(2, 0xffffff, 0.25);
     this.fuelFill = this.add.rectangle(BAR_X, FUEL_BAR_Y, 2, 10, COLOR_DANGER).setOrigin(0, 0.5);
   }
@@ -196,7 +200,7 @@ export class MoonEraScene extends Phaser.Scene {
           this.drawEngineButtons();
           this.updateReadouts();
         },
-        { width, height: 48, fontSize: IS_PORTRAIT ? 13 : 15, fillColor: selected ? PALETTE.portalEdge : PALETTE.portalCore },
+        { width, height: 48, fontSize: 16, fillColor: selected ? PALETTE.portalEdge : PALETTE.portalCore },
       );
       this.engineButtons.push(btn);
     });
@@ -222,8 +226,8 @@ export class MoonEraScene extends Phaser.Scene {
       color: PALETTE.gold,
     }).setOrigin(0.5);
 
-    this.add.text(SLIDER_X, SLIDER_Y + 30, 'Empty', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5);
-    this.add.text(SLIDER_X + SLIDER_W, SLIDER_Y + 30, 'Full Tank', { fontFamily: FONT_FAMILY, fontSize: '13px', color: PALETTE.textMuted }).setOrigin(0.5, 0).setX(SLIDER_X + SLIDER_W - 30);
+    this.add.text(SLIDER_X, SLIDER_Y + 30, 'Empty', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5);
+    this.add.text(SLIDER_X + SLIDER_W, SLIDER_Y + 30, 'Full Tank', { fontFamily: FONT_FAMILY, fontSize: '16px', color: PALETTE.textMuted }).setOrigin(0.5, 0).setX(SLIDER_X + SLIDER_W - 30);
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.draggingSlider || this.locked) return;

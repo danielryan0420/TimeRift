@@ -4,6 +4,7 @@ import { ARTIFACTS, artifactMeterText } from '../core/progression';
 import { FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH, IS_PORTRAIT, PALETTE } from '../ui/theme';
 import { createButton } from '../ui/GameButton';
 import { starField } from '../ui/parallax';
+import { showToast } from '../ui/toast';
 
 export class MuseumScene extends Phaser.Scene {
   constructor() {
@@ -38,7 +39,7 @@ export class MuseumScene extends Phaser.Scene {
 
     this.add.text(GAME_WIDTH / 2, meterY + 30, artifactMeterText(collected, ARTIFACTS.length), {
       fontFamily: FONT_FAMILY,
-      fontSize: '14px',
+      fontSize: '16px',
       color: PALETTE.textLight,
     }).setOrigin(0.5, 0);
 
@@ -65,18 +66,26 @@ export class MuseumScene extends Phaser.Scene {
       this.add.text(x, y - 25, collected ? '🏺' : '❔', { fontSize: '40px' }).setOrigin(0.5);
       this.add.text(x, y + 20, collected ? artifact.name : '???', {
         fontFamily: FONT_FAMILY,
-        fontSize: '14px',
+        fontSize: '16px',
         color: collected ? PALETTE.textLight : PALETTE.textMuted,
         align: 'center',
-        wordWrap: { width: cardW - 20 },
+        wordWrap: { width: cardW - 20, useAdvancedWrap: true },
       }).setOrigin(0.5, 0);
-      this.add.text(x, y + 55, collected ? artifact.blurb : 'Find this in its era.', {
+
+      // The blurb is shown on tap (via toast) instead of always-on inside the card: at a
+      // readable 16px font, long blurbs like the Flyer Propeller Fragment's would need 4+
+      // wrapped lines, which no longer fits a grid card without overlapping the row below.
+      const hint = this.add.text(x, y + 66, '👆 tap for info', {
         fontFamily: FONT_FAMILY,
-        fontSize: '11px',
+        fontSize: '13px',
         color: PALETTE.textMuted,
         align: 'center',
-        wordWrap: { width: cardW - 20 },
       }).setOrigin(0.5, 0);
+      card.setInteractive(new Phaser.Geom.Rectangle(x - cardW / 2, y - 60, cardW, 150), Phaser.Geom.Rectangle.Contains);
+      card.on('pointerup', () => {
+        showToast(this, collected ? artifact.blurb : 'Find this in its era.', collected ? PALETTE.textLight : PALETTE.textMuted);
+      });
+      void hint;
     });
 
     createButton(this, GAME_WIDTH / 2, GAME_HEIGHT - 44, '< Back to Map', () => this.scene.start('Hub'), { width: 220 });

@@ -65,25 +65,44 @@ export class StoryIntroScene extends Phaser.Scene {
       fontSize: IS_PORTRAIT ? '26px' : '34px',
       color: PALETTE.gold,
       align: 'center',
-      wordWrap: { width: fitWidth(640) },
-    }).setOrigin(0.5);
+      wordWrap: { width: fitWidth(640), useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
     this.lineText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20, '', {
       fontFamily: FONT_FAMILY,
       fontSize: '19px',
       color: PALETTE.textLight,
       align: 'center',
-      wordWrap: { width: fitWidth(640) },
-    }).setOrigin(0.5);
+      wordWrap: { width: fitWidth(640), useAdvancedWrap: true },
+    }).setOrigin(0.5, 0);
 
-    const dotsY = GAME_HEIGHT / 2 + 110;
     const dotSpacing = 24;
     const dotsStartX = GAME_WIDTH / 2 - (dotSpacing * (SLIDES.length - 1)) / 2;
-    this.dots = SLIDES.map((_, i) => this.add.circle(dotsStartX + i * dotSpacing, dotsY, 6, 0x4a3f66));
+    this.dots = SLIDES.map((_, i) => this.add.circle(dotsStartX + i * dotSpacing, GAME_HEIGHT / 2 + 110, 6, 0x4a3f66));
 
     this.nextButton = createButton(this, GAME_WIDTH / 2, GAME_HEIGHT - 60, 'Next', () => this.advance(), { width: 220, height: 56 });
 
     this.renderSlide();
     portalIn(this);
+  }
+
+  /**
+   * Titles/lines vary a lot in wrapped length across slides (1-3 lines depending on text and
+   * portrait's narrower wrap width), so every slide re-stacks emoji/title/line from measured
+   * heights instead of the old fixed y's — those clipped as close as ~5px on the longest slide.
+   */
+  private layoutSlide(): void {
+    const topY = IS_PORTRAIT ? 90 : 70;
+    let cursorY = topY + this.emojiText.displayHeight / 2;
+    this.emojiText.setY(cursorY);
+    cursorY += this.emojiText.displayHeight / 2 + (IS_PORTRAIT ? 20 : 26);
+    this.titleText.setY(cursorY);
+    cursorY += this.titleText.displayHeight + 14;
+    this.lineText.setY(cursorY);
+    cursorY += this.lineText.displayHeight;
+
+    const dotsY = Math.max(cursorY + 36, GAME_HEIGHT * 0.72);
+    this.dots.forEach((dot) => dot.setY(dotsY));
+    this.nextButton.setY(Math.min(dotsY + 56, GAME_HEIGHT - 50));
   }
 
   private renderSlide(): void {
@@ -94,6 +113,7 @@ export class StoryIntroScene extends Phaser.Scene {
     this.dots.forEach((dot, i) => dot.setFillStyle(i === this.index ? 0xffd34d : 0x4a3f66));
 
     getButtonLabel(this.nextButton).setText(this.index === SLIDES.length - 1 ? "Let's Go!" : 'Next');
+    this.layoutSlide();
 
     [this.emojiText, this.titleText, this.lineText].forEach((t) => {
       t.setAlpha(0);
